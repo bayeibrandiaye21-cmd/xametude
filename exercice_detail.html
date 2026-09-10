@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XamÉtudes - Détail de l'exercice</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <!-- NAVBAR TOP -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="xam.html" class="flex items-center gap-2 hover:opacity-90 transition">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">XÉ</div>
+                <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">XamÉtudes</span>
+            </a>
+
+            <a href="xam.html" class="text-xs font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-1.5">
+                <i data-lucide="arrow-left" class="h-4 w-4"></i> Retour au tableau de bord
+            </a>
+        </div>
+    </header>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
+
+        <div id="loading-state" class="text-center text-sm text-slate-400 py-20">Chargement de l'exercice...</div>
+
+        <div id="content" class="hidden space-y-6">
+
+            <!-- QUESTION PRINCIPALE -->
+            <article class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+                
+                <!-- Badges & Métadonnées -->
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span id="ex-subject" class="bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1 rounded-full"></span>
+                        <span id="ex-level" class="bg-slate-100 text-slate-600 font-medium text-xs px-2.5 py-1 rounded-full"></span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                        <i data-lucide="award" class="h-4 w-4 text-amber-500"></i> +<span id="ex-reward">20</span> Points à gagner
+                    </div>
+                </div>
+
+                <!-- Titre -->
+                <h1 id="ex-title" class="text-xl sm:text-2xl font-bold text-slate-900"></h1>
+
+                <!-- Profil de l'auteur -->
+                <div class="flex items-center gap-3 pt-1 border-b border-slate-100 pb-4">
+                    <div id="ex-author-avatar" class="h-10 w-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">??</div>
+                    <div>
+                        <div id="ex-author-name" class="text-xs font-bold text-slate-800"></div>
+                        <div id="ex-date" class="text-[10px] text-slate-400"></div>
+                    </div>
+                </div>
+
+                <!-- Corps de la question -->
+                <div id="ex-description" class="text-sm text-slate-700 leading-relaxed space-y-3 pt-2 whitespace-pre-line"></div>
+
+                <!-- Pièce jointe / Image -->
+                <div id="ex-image-container" class="hidden pt-2">
+                    <img id="ex-image" src="" alt="Photo de l'exercice" class="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain">
+                </div>
+
+            </article>
+
+            <!-- SECTION RÉPONSES -->
+            <section class="space-y-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="message-square" class="h-5 w-5 text-indigo-600"></i>
+                    Réponses des camarades (<span id="answers-count">0</span>)
+                </h2>
+
+                <div id="answers-list" class="space-y-4">
+                    <!-- Généré dynamiquement en JS -->
+                </div>
+            </section>
+
+            <!-- FORMULAIRE POUR RÉPONDRE -->
+            <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Proposer ta solution</h3>
+                
+                <form id="reply-form" class="space-y-4">
+                    <textarea id="reply-content" rows="4" required placeholder="Explique clairement ta démarche étape par étape..."
+                              class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm"></textarea>
+                    
+                    <div class="flex items-center justify-end pt-2">
+                        <button type="submit" id="reply-submit-btn" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center gap-2 disabled:opacity-50">
+                            <i data-lucide="send" class="h-4 w-4"></i> <span id="reply-submit-label">Envoyer ma réponse</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+        </div>
+
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        lucide.createIcons();
+
+        let currentUser = null;
+        let exerciseId = null;
+
+        const subjectColors = {
+            "Mathématiques": "bg-indigo-100 text-indigo-700",
+            "Physique-Chimie": "bg-blue-100 text-blue-700",
+            "SVT": "bg-emerald-100 text-emerald-700",
+            "Philosophie": "bg-violet-100 text-violet-700",
+            "Français": "bg-pink-100 text-pink-700",
+            "Anglais": "bg-amber-100 text-amber-700",
+            "Histoire-Géo": "bg-orange-100 text-orange-700"
+        };
+
+        (async () => {
+            currentUser = await verifierConnexion();
+            if (!currentUser) return;
+
+            const params = new URLSearchParams(window.location.search);
+            exerciseId = params.get('id');
+
+            if (!exerciseId) {
+                document.getElementById('loading-state').textContent = "Aucun exercice sélectionné.";
+                return;
+            }
+
+            await chargerExercice();
+            await chargerReponses();
+        })();
+
+        function initiales(nom) {
+            if (!nom) return '??';
+            return nom.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            return "Publié le " + d.toLocaleDateString('fr-FR') + " à " + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function chargerExercice() {
+            const { data: ex, error } = await window.supabaseClient
+                .from('exercises')
+                .select('*, profiles(name, initials)')
+                .eq('id', exerciseId)
+                .single();
+
+            if (error || !ex) {
+                document.getElementById('loading-state').textContent = "Cet exercice est introuvable.";
+                return;
+            }
+
+            document.getElementById('ex-subject').textContent = ex.subject;
+            document.getElementById('ex-subject').className = 'font-bold text-xs px-3 py-1 rounded-full ' + (subjectColors[ex.subject] || 'bg-indigo-100 text-indigo-700');
+            document.getElementById('ex-level').textContent = ex.level;
+            document.getElementById('ex-reward').textContent = ex.reward_points;
+            document.getElementById('ex-title').textContent = ex.title;
+            document.getElementById('ex-author-name').textContent = ex.profiles?.name || 'Élève';
+            document.getElementById('ex-author-avatar').textContent = ex.profiles?.initials || initiales(ex.profiles?.name);
+            document.getElementById('ex-date').textContent = formatDate(ex.created_at);
+            document.getElementById('ex-description').textContent = ex.description;
+
+            if (ex.image_url) {
+                document.getElementById('ex-image').src = ex.image_url;
+                document.getElementById('ex-image-container').classList.remove('hidden');
+            }
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('content').classList.remove('hidden');
+        }
+
+        async function chargerReponses() {
+            const { data: answers, error } = await window.supabaseClient
+                .from('answers')
+                .select('*, profiles(name, initials)')
+                .eq('exercise_id', exerciseId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const list = document.getElementById('answers-list');
+            document.getElementById('answers-count').textContent = answers.length;
+
+            if (answers.length === 0) {
+                list.innerHTML = '<div class="text-center text-xs text-slate-400 py-6 bg-white rounded-2xl border border-slate-200">Aucune réponse pour le moment. Sois le premier à aider !</div>';
+                return;
+            }
+
+            list.innerHTML = answers.map(a => `
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3 relative">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs">${a.profiles?.initials || initiales(a.profiles?.name)}</div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">${a.profiles?.name || 'Élève'}</div>
+                                <div class="text-[10px] text-slate-400">${formatDate(a.created_at)}</div>
+                            </div>
+                        </div>
+                        ${a.is_validated ? `
+                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                            <i data-lucide="check-circle" class="h-3.5 w-3.5 text-emerald-600"></i> Solution validée
+                        </span>` : ''}
+                    </div>
+                    <div class="text-sm text-slate-700 leading-relaxed pt-2 whitespace-pre-line">${a.content.replace(/</g, '&lt;')}</div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        document.getElementById('reply-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const content = document.getElementById('reply-content').value.trim();
+            if (!content || !currentUser) return;
+
+            const btn = document.getElementById('reply-submit-btn');
+            const label = document.getElementById('reply-submit-label');
+            btn.disabled = true;
+            label.textContent = 'Envoi en cours...';
+
+            const { error } = await window.supabaseClient
+                .from('answers')
+                .insert({ exercise_id: exerciseId, user_id: currentUser.id, content: content });
+
+            if (error) {
+                alert("Erreur lors de l'envoi de la réponse : " + error.message);
+                btn.disabled = false;
+                label.textContent = 'Envoyer ma réponse';
+                return;
+            }
+
+            // Met à jour les stats du profil de celui qui répond (aide un camarade)
+            try {
+                await window.supabaseClient.rpc('increment_solved_count', { p_user_id: currentUser.id });
+            } catch (statErr) {
+                console.warn("Stat non mise à jour (non bloquant) :", statErr);
+            }
+
+            document.getElementById('reply-content').value = '';
+            btn.disabled = false;
+            label.textContent = 'Envoyer ma réponse';
+
+            await chargerReponses();
+        });
+    </script>
+</body>
+</html>

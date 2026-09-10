@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XamÉtudes - Tableau de bord</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
+
+    <!-- NAVBAR TOP -->
+    <header class="bg-white border-b border-slate-200 h-16 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+            
+            <!-- Logo -->
+            <a href="xam.html" class="flex items-center gap-2 hover:opacity-90 transition">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">XÉ</div>
+                <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">XamÉtudes</span>
+            </a>
+
+            <!-- Navigation Rapide -->
+            <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
+                <a href="xam.html" class="text-indigo-600 font-bold">Tableau de bord</a>
+                <a href="chat.html" class="hover:text-indigo-600 transition">Salons d'entraide</a>
+                <a href="poser_exercice.html" class="hover:text-indigo-600 transition">Poser une question</a>
+            </nav>
+
+            <!-- Profil -->
+            <div class="flex items-center gap-2">
+                <a href="profil.html" class="flex items-center gap-3 border-l border-slate-200 pl-4 hover:opacity-80 transition cursor-pointer">
+                    <div id="nav-avatar" class="h-9 w-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center font-bold text-indigo-700 shadow-sm">
+                        ...
+                    </div>
+                    <div class="hidden sm:block text-left">
+                        <div id="nav-name" class="text-sm font-semibold leading-tight text-slate-800">Chargement...</div>
+                        <div id="nav-class" class="text-xs text-slate-500"></div>
+                    </div>
+                </a>
+                <button onclick="seDeconnecter()" title="Se déconnecter" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                    <i data-lucide="log-out" class="h-4 w-4"></i>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- SECTION HÉRO & BARRE DE RECHERCHE -->
+    <section class="bg-gradient-to-b from-indigo-900 to-indigo-800 text-white py-12 px-4 sm:px-6 lg:px-8 shadow-md">
+        <div class="max-w-4xl mx-auto text-center space-y-4">
+            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight">
+                Que souhaitez-vous réviser aujourd'hui ?
+            </h1>
+            <p class="text-indigo-200 text-xs sm:text-sm max-w-2xl mx-auto">
+                Recherchez parmi l'ensemble des sujets du Bac, devoirs et ressources hébergés localement.
+            </p>
+
+            <!-- BARRE DE RECHERCHE PRINCIPALE -->
+            <div class="pt-2 max-w-2xl mx-auto">
+                <form onsubmit="rechercherRessource(event)" class="relative flex items-center shadow-lg rounded-2xl overflow-hidden bg-white text-slate-800">
+                    <div class="pl-4 text-slate-400">
+                        <i data-lucide="search" class="h-5 w-5"></i>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="search-input"
+                        placeholder="Ex: Mathématiques, Physique, Bac, 2nde, Terminale..." 
+                        class="w-full px-3 py-3.5 text-xs sm:text-sm focus:outline-none placeholder-slate-400"
+                        oninput="filtrerEnTempsReel()"
+                    >
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-3.5 text-xs sm:text-sm transition flex items-center gap-2 flex-none">
+                        <span>Filtrer</span>
+                        <i data-lucide="filter" class="h-4 w-4"></i>
+                    </button>
+                </form>
+                
+                <!-- Tag de suggestions -->
+                <div class="flex items-center justify-center gap-2 mt-3 text-[11px] text-indigo-200 flex-wrap">
+                    <span class="font-semibold text-indigo-300">Filtres rapides :</span>
+                    <button type="button" onclick="appliquerFiltre('2nde')" class="bg-indigo-800/60 hover:bg-indigo-700 px-2.5 py-1 rounded-full transition border border-indigo-700/50">#Seconde</button>
+                    <button type="button" onclick="appliquerFiltre('1ere')" class="bg-indigo-800/60 hover:bg-indigo-700 px-2.5 py-1 rounded-full transition border border-indigo-700/50">#Première</button>
+                    <button type="button" onclick="appliquerFiltre('Terminale')" class="bg-indigo-800/60 hover:bg-indigo-700 px-2.5 py-1 rounded-full transition border border-indigo-700/50">#Terminale</button>
+                    <button type="button" onclick="appliquerFiltre('')" class="bg-indigo-800/60 hover:bg-indigo-700 px-2.5 py-1 rounded-full transition border border-indigo-700/50">#Tout Afficher</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- ACCÈS RAPIDE AUX SALONS & QUESTIONS -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            
+            <!-- Carte 1 : Salons -->
+            <a href="chat.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl w-fit mb-4 group-hover:bg-indigo-600 group-hover:text-white transition">
+                    <i data-lucide="messages-square" class="h-6 w-6"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base mb-1">Salons d'entraide</h3>
+                <p class="text-xs text-slate-500">Discutez en direct avec d'autres élèves par matière et partagez vos exercices.</p>
+            </a>
+
+            <!-- Carte 2 : Poser une question -->
+            <a href="poser_exercice.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
+                <div class="p-3 bg-violet-50 text-violet-600 rounded-xl w-fit mb-4 group-hover:bg-violet-600 group-hover:text-white transition">
+                    <i data-lucide="help-circle" class="h-6 w-6"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base mb-1">Poser un problème</h3>
+                <p class="text-xs text-slate-500">Bloqué sur un devoir ? Publiez un énoncé et recevez des explications détaillées.</p>
+            </a>
+
+        </section>
+
+        <!-- EXERCICES RÉCENTS POSÉS PAR LES ÉLÈVES -->
+        <section class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-violet-50 text-violet-600 rounded-xl">
+                        <i data-lucide="help-circle" class="h-6 w-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base">Exercices récents des camarades</h3>
+                        <p class="text-xs text-slate-500">Aide un camarade et gagne des points</p>
+                    </div>
+                </div>
+                <a href="poser_exercice.html" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1">
+                    Poser une question <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                </a>
+            </div>
+
+            <div id="exercises-list" class="space-y-3">
+                <div class="text-center text-xs text-slate-400 py-6">Chargement des exercices...</div>
+            </div>
+        </section>
+
+        <!-- BANQUE DE FICHIERS DIRECTEMENT INTÉGRÉE DANS LE SITE -->
+        <section class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="file-text" class="h-6 w-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base">Documents & Épreuves disponibles</h3>
+                        <p class="text-xs text-slate-500">Consultation et téléchargement direct (<span id="total-count">0</span> document(s))</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONE D'AFFICHAGE DES FICHIERS -->
+            <div id="drive-files-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Les cartes de documents seront générées ici -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- VISIONNEUSE PDF INTÉGRÉE AU SITE (MODALE) -->
+    <div id="pdf-modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200">
+            <!-- Barre supérieure de la visionneuse -->
+            <div class="p-4 bg-slate-900 text-white flex justify-between items-center flex-none">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="p-2 bg-indigo-600 rounded-lg text-white flex-none">
+                        <i data-lucide="file-text" class="h-5 w-5"></i>
+                    </div>
+                    <h3 id="pdf-title" class="font-bold text-sm truncate">Aperçu du document</h3>
+                </div>
+                <button onclick="fermerPDF()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                    <span>Fermer</span>
+                </button>
+            </div>
+            <!-- Zone Iframe du document -->
+            <div class="flex-1 bg-slate-100 relative">
+                <iframe id="pdf-viewer" src="" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT JS -->
+    <script src="config.js"></script>
+    <script>
+        lucide.createIcons();
+
+        // Vérifie que l'élève est connecté, sinon redirige vers connexion.html
+        // puis affiche son vrai nom / classe / initiales dans la barre du haut
+        (async () => {
+            const profile = await getProfilActuel();
+            if (!profile) return; // déjà redirigé par getProfilActuel() si pas connecté
+
+            document.getElementById('nav-name').textContent = profile.name;
+            document.getElementById('nav-class').textContent = profile.class;
+            document.getElementById('nav-avatar').textContent = profile.initials;
+
+            await chargerExercicesRecents();
+        })();
+
+        // Charge les 6 derniers exercices postés, tous élèves confondus
+        async function chargerExercicesRecents() {
+            const { data: exercises, error } = await window.supabaseClient
+                .from('exercises')
+                .select('id, subject, title, status, created_at, profiles(name, initials)')
+                .order('created_at', { ascending: false })
+                .limit(6);
+
+            const container = document.getElementById('exercises-list');
+
+            if (error || !exercises || exercises.length === 0) {
+                container.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Aucun exercice publié pour le moment. Sois le premier !</div>';
+                return;
+            }
+
+            const statusStyle = {
+                "En attente": "text-amber-600 bg-amber-50",
+                "Résolu": "text-emerald-600 bg-emerald-50"
+            };
+
+            container.innerHTML = exercises.map(ex => `
+                <a href="exercice_detail.html?id=${ex.id}" class="p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition flex items-center justify-between gap-3">
+                    <div class="space-y-1 overflow-hidden">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">${ex.subject}</span>
+                            <span class="text-[10px] text-slate-400">par ${ex.profiles?.name || 'Élève'}</span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-800 truncate">${ex.title}</div>
+                    </div>
+                    <span class="flex-none text-xs font-semibold px-2.5 py-1 rounded-lg ${statusStyle[ex.status] || statusStyle['En attente']}">${ex.status}</span>
+                </a>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        // BASE DE DONNÉES LOCALE DES DOCUMENTS
+        // Placez vos fichiers PDF dans le dossier 'documents/' de votre projet
+        const tousLesFichiers = [
+            { id: "1", name: "Devoir_Maths_Limites_Terminale_S.pdf", url: "documents/Devoir_Maths_Limites_Terminale_S.pdf", categorie: "Terminale" },
+            { id: "2", name: "Composition_Physique_Cinématique_1ere_S.pdf", url: "documents/Composition_Physique_Cinématique_1ere_S.pdf", categorie: "1ere" },
+            { id: "3", name: "Bac_Epreuve_Mathématiques_Terminale.pdf", url: "documents/Bac_Epreuve_Mathématiques_Terminale.pdf", categorie: "Terminale" },
+            { id: "4", name: "Fascicule_Chimie_Benzene_Terminale.pdf", url: "documents/Fascicule_Chimie_Benzene_Terminale.pdf", categorie: "Terminale" },
+            { id: "5", name: "Devoir_Francais_Dissertation_2nde.pdf", url: "documents/Devoir_Francais_Dissertation_2nde.pdf", categorie: "2nde" },
+            { id: "6", name: "Document anglais-Terminale.pdf", url: "documents/anglais.pdf", categorie: "Terminale" },
+            { id: "7", name: "Fascicule_SVT_Exercice_1ere_S2.pdf", url: "documents/exo-svt.pdf", categorie: "1ere" }
+        ];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('total-count').textContent = tousLesFichiers.length;
+            afficherFichiers(tousLesFichiers);
+        });
+
+        // Générer les cartes HTML
+        function afficherFichiers(fichiers) {
+            const grid = document.getElementById('drive-files-grid');
+            grid.innerHTML = '';
+
+            if (fichiers.length === 0) {
+                grid.innerHTML = `<div class="col-span-full bg-slate-50 p-6 rounded-xl text-center text-xs text-slate-500">Aucun document ne correspond à votre recherche.</div>`;
+                return;
+            }
+
+            fichiers.forEach(file => {
+                const carteHTML = `
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between hover:border-indigo-400 hover:shadow-sm transition">
+                        <div class="flex items-start gap-3 mb-3">
+                            <div class="p-2.5 bg-indigo-100 text-indigo-700 rounded-lg flex-none mt-0.5">
+                                <i data-lucide="file-text" class="h-5 w-5"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <h4 class="font-bold text-slate-800 text-xs truncate" title="${file.name}">${file.name}</h4>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Document PDF / Épreuve</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mt-2">
+                            <button onclick="ouvrirVisionneuse('${file.url}', '${file.name.replace(/'/g, "\\'")}')" class="bg-white border border-slate-300 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 text-slate-700 font-semibold text-[11px] py-2 rounded-lg transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+                                <span>Aperçu</span>
+                            </button>
+                            <a href="${file.url}" download="${file.name}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] py-2 rounded-lg transition flex items-center justify-center gap-1.5 text-center">
+                                <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                                <span>Télécharger</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', carteHTML);
+            });
+            lucide.createIcons();
+        }
+
+        // Filtre instantané lorsqu'on tape dans le champ
+        function filtrerEnTempsReel() {
+            const requete = document.getElementById('search-input').value.trim().toLowerCase();
+            const filtres = tousLesFichiers.filter(f => f.name.toLowerCase().includes(requete) || f.categorie.toLowerCase().includes(requete));
+            afficherFichiers(filtres);
+        }
+
+        // Soumission de la recherche
+        function rechercherRessource(e) {
+            e.preventDefault();
+            filtrerEnTempsReel();
+        }
+
+        // Raccourcis / Tags
+        function appliquerFiltre(terme) {
+            document.getElementById('search-input').value = terme;
+            filtrerEnTempsReel();
+        }
+
+        // Visionneuse PDF
+        function ouvrirVisionneuse(fileUrl, titre) {
+            document.getElementById('pdf-title').textContent = titre;
+            document.getElementById('pdf-viewer').src = fileUrl;
+            document.getElementById('pdf-modal').classList.remove('hidden');
+        }
+
+        // Fermer la visionneuse
+        function fermerPDF() {
+            document.getElementById('pdf-modal').classList.add('hidden');
+            document.getElementById('pdf-viewer').src = '';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XamÉtudes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-indigo-900">
+    <script src="config.js"></script>
+    <script>
+        (async () => {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            window.location.href = session ? "xam.html" : "connexion.html";
+        })();
+    </script>
+</body>
+</html>

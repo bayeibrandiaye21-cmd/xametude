@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XamÉtudes - Profil Élève</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <!-- NAVBAR TOP -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="xam.html" class="flex items-center gap-2 hover:opacity-90 transition">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">XÉ</div>
+                <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">XamÉtudes</span>
+            </a>
+
+            <a href="xam.html" class="text-xs font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-1.5">
+                <i data-lucide="arrow-left" class="h-4 w-4"></i> Tableau de bord
+            </a>
+        </div>
+    </header>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-8 space-y-6">
+
+        <div id="loading-state" class="text-center text-sm text-slate-400 py-20">Chargement du profil...</div>
+
+        <div id="content" class="hidden space-y-6">
+
+            <!-- CARTE EN-TÊTE PROFIL -->
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-24 bg-gradient-to-r from-indigo-600 to-violet-600"></div>
+                
+                <div class="relative pt-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
+                        <div class="h-24 w-24 rounded-2xl bg-white p-1 shadow-md flex-none">
+                            <div id="user-avatar" class="w-full h-full rounded-xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-3xl">
+                                ??
+                            </div>
+                        </div>
+                        <div>
+                            <h1 id="user-name" class="text-2xl font-bold text-slate-900"></h1>
+                            <p id="user-class" class="text-xs text-slate-500 font-medium"></p>
+                            <div class="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                                <span id="user-badge" class="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">Membre Actif</span>
+                                <span id="user-rank" class="bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                    <i data-lucide="zap" class="h-3 w-3 text-amber-600"></i> ...
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="action-btn-container" class="flex justify-center gap-2">
+                        <!-- Généré en JS -->
+                    </div>
+                </div>
+
+                <!-- Formulaire d'édition (masqué par défaut) -->
+                <div id="edit-form" class="hidden relative mt-6 pt-6 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Nom complet</label>
+                        <input id="edit-name" type="text" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Classe</label>
+                        <select id="edit-class" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                            <option value="Terminale S1">Terminale S1</option>
+                            <option value="Terminale S2">Terminale S2</option>
+                            <option value="Terminale L">Terminale L</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2 flex justify-end gap-2">
+                        <button onclick="annulerEdition()" type="button" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">Annuler</button>
+                        <button onclick="sauvegarderProfil()" type="button" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATISTIQUES -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="award" class="h-6 w-6"></i>
+                    </div>
+                    <div>
+                        <div id="stat-points" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs font-semibold text-slate-500">Points accumulés</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <i data-lucide="check-circle-2" class="h-6 w-6"></i>
+                    </div>
+                    <div>
+                        <div id="stat-solved" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs font-semibold text-slate-500">Camarades aidés</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="help-circle" class="h-6 w-6"></i>
+                    </div>
+                    <div>
+                        <div id="stat-asked" class="text-2xl font-black text-slate-900">0</div>
+                        <div class="text-xs font-semibold text-slate-500">Questions posées</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BADGES & ACTIVITÉS -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Badges -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="shield-check" class="h-4 w-4 text-indigo-600"></i> Badges obtenus
+                    </h2>
+
+                    <div id="badges-container" class="space-y-3">
+                        <!-- Généré dynamiquement en JS -->
+                    </div>
+                </div>
+
+                <!-- Publications récentes -->
+                <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="history" class="h-4 w-4 text-indigo-600"></i> Publications récentes
+                    </h2>
+
+                    <div id="posts-container" class="space-y-3">
+                        <!-- Généré dynamiquement en JS -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        lucide.createIcons();
+
+        let currentUser = null;
+        let viewedProfileId = null;
+        let isMe = false;
+
+        const subjectColors = {
+            "Mathématiques": "bg-indigo-100 text-indigo-700",
+            "Physique-Chimie": "bg-blue-100 text-blue-700",
+            "SVT": "bg-emerald-100 text-emerald-700",
+            "Philosophie": "bg-violet-100 text-violet-700",
+            "Français": "bg-pink-100 text-pink-700",
+            "Anglais": "bg-amber-100 text-amber-700",
+            "Histoire-Géo": "bg-orange-100 text-orange-700"
+        };
+
+        function initiales(nom) {
+            if (!nom) return '??';
+            return nom.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        (async () => {
+            currentUser = await verifierConnexion();
+            if (!currentUser) return;
+
+            const params = new URLSearchParams(window.location.search);
+            const requestedUser = params.get('user');
+            viewedProfileId = requestedUser || currentUser.id;
+            isMe = viewedProfileId === currentUser.id;
+
+            await chargerProfil();
+            await chargerClassement();
+            await chargerPublications();
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('content').classList.remove('hidden');
+        })();
+
+        let profileData = null;
+
+        async function chargerProfil() {
+            const { data: profile, error } = await window.supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('id', viewedProfileId)
+                .single();
+
+            if (error || !profile) {
+                document.getElementById('loading-state').textContent = "Profil introuvable.";
+                return;
+            }
+
+            profileData = profile;
+
+            document.getElementById('user-name').textContent = profile.name;
+            document.getElementById('user-class').textContent = profile.class;
+            document.getElementById('user-avatar').textContent = profile.initials || initiales(profile.name);
+            document.getElementById('stat-points').textContent = profile.points;
+            document.getElementById('stat-solved').textContent = profile.solved_count;
+            document.getElementById('stat-asked').textContent = profile.asked_count;
+
+            // Badge de statut basé sur les points
+            let badgeLabel = "Nouveau membre";
+            if (profile.points >= 200) badgeLabel = "Top Entraide";
+            else if (profile.points >= 100) badgeLabel = "Membre Actif";
+            else if (profile.points >= 20) badgeLabel = "Enthousiaste";
+            document.getElementById('user-badge').textContent = badgeLabel;
+
+            // Badges dynamiques selon les statistiques
+            const badges = [];
+            if (profile.solved_count >= 1) badges.push({ title: "Premier coup de main", desc: "A aidé un camarade pour la première fois", icon: "heart-handshake", color: "bg-indigo-500" });
+            if (profile.solved_count >= 10) badges.push({ title: "Camarade Modèle", desc: "A aidé plus de 10 élèves", icon: "heart-handshake", color: "bg-indigo-600" });
+            if (profile.asked_count >= 1) badges.push({ title: "Curieux", desc: "A posé sa première question", icon: "help-circle", color: "bg-blue-500" });
+            if (profile.points >= 100) badges.push({ title: "Crack des révisions", desc: "Plus de 100 points accumulés", icon: "award", color: "bg-amber-400" });
+
+            const badgesContainer = document.getElementById('badges-container');
+            if (badges.length === 0) {
+                badgesContainer.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">Aucun badge pour le moment. Participe pour en débloquer !</div>';
+            } else {
+                badgesContainer.innerHTML = badges.map(b => `
+                    <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="p-2 ${b.color} text-white rounded-lg">
+                            <i data-lucide="${b.icon}" class="h-5 w-5"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-800">${b.title}</div>
+                            <div class="text-[10px] text-slate-500">${b.desc}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Bouton d'action
+            const actionContainer = document.getElementById('action-btn-container');
+            if (isMe) {
+                actionContainer.innerHTML = `
+                    <button onclick="ouvrirEdition()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition flex items-center gap-2">
+                        <i data-lucide="edit-3" class="h-4 w-4"></i> Modifier le profil
+                    </button>
+                `;
+            } else {
+                actionContainer.innerHTML = `
+                    <a href="chat.html" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2">
+                        <i data-lucide="message-square" class="h-4 w-4"></i> Rejoindre un salon
+                    </a>
+                `;
+            }
+
+            lucide.createIcons();
+        }
+
+        // Calcule le rang de l'élève parmi tous les profils, selon les points
+        async function chargerClassement() {
+            const { data: allProfiles, error } = await window.supabaseClient
+                .from('profiles')
+                .select('id, points')
+                .order('points', { ascending: false });
+
+            if (error || !allProfiles) return;
+
+            const rank = allProfiles.findIndex(p => p.id === viewedProfileId) + 1;
+            document.getElementById('user-rank').innerHTML = `<i data-lucide="zap" class="h-3 w-3 text-amber-600"></i> Rang #${rank} de la classe`;
+            lucide.createIcons();
+        }
+
+        async function chargerPublications() {
+            const { data: posts, error } = await window.supabaseClient
+                .from('exercises')
+                .select('id, subject, title, status, created_at')
+                .eq('user_id', viewedProfileId)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            const container = document.getElementById('posts-container');
+
+            if (error || !posts || posts.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-400 text-center py-6">Aucune publication pour le moment.</div>';
+                return;
+            }
+
+            const statusStyle = {
+                "En attente": "text-amber-600 bg-amber-50",
+                "Résolu": "text-emerald-600 bg-emerald-50"
+            };
+
+            container.innerHTML = posts.map(p => `
+                <div class="p-4 border border-slate-100 rounded-xl hover:border-slate-200 transition flex items-center justify-between gap-3">
+                    <div class="space-y-1 overflow-hidden">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${subjectColors[p.subject] || 'bg-indigo-100 text-indigo-700'}">${p.subject}</span>
+                            <span class="text-[10px] text-slate-400">${new Date(p.created_at).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <a href="exercice_detail.html?id=${p.id}" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition block truncate">
+                            ${p.title}
+                        </a>
+                    </div>
+                    <span class="flex-none text-xs font-semibold px-2.5 py-1 rounded-lg ${statusStyle[p.status] || statusStyle['En attente']}">${p.status}</span>
+                </div>
+            `).join('');
+        }
+
+        // ============================================
+        // ÉDITION DU PROFIL (nom / classe)
+        // ============================================
+        function ouvrirEdition() {
+            document.getElementById('edit-name').value = profileData.name;
+            document.getElementById('edit-class').value = profileData.class;
+            document.getElementById('edit-form').classList.remove('hidden');
+        }
+
+        function annulerEdition() {
+            document.getElementById('edit-form').classList.add('hidden');
+        }
+
+        async function sauvegarderProfil() {
+            const newName = document.getElementById('edit-name').value.trim();
+            const newClass = document.getElementById('edit-class').value;
+            if (!newName) return;
+
+            const newInitials = initiales(newName);
+
+            const { error } = await window.supabaseClient
+                .from('profiles')
+                .update({ name: newName, class: newClass, initials: newInitials })
+                .eq('id', currentUser.id);
+
+            if (error) {
+                alert("Erreur lors de la sauvegarde : " + error.message);
+                return;
+            }
+
+            document.getElementById('edit-form').classList.add('hidden');
+            await chargerProfil();
+        }
+    </script>
+</body>
+</html>
