@@ -10,6 +10,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
 
@@ -70,7 +76,7 @@
                         id="search-input"
                         placeholder="Ex: Mathématiques, Physique, Bac, 2nde, Terminale..." 
                         class="w-full px-3 py-3.5 text-xs sm:text-sm focus:outline-none placeholder-slate-400"
-                        oninput="filtrerEnTempsReel()"
+                        oninput="filtrerDepuisHero()"
                     >
                     <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-3.5 text-xs sm:text-sm transition flex items-center gap-2 flex-none">
                         <span>Filtrer</span>
@@ -140,21 +146,31 @@
 
         <!-- BANQUE DE FICHIERS DIRECTEMENT INTÉGRÉE DANS LE SITE -->
         <section class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4 flex-wrap gap-3">
                 <div class="flex items-center gap-3">
                     <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
                         <i data-lucide="file-text" class="h-6 w-6"></i>
                     </div>
                     <div>
                         <h3 class="font-bold text-slate-800 text-base">Documents & Épreuves disponibles</h3>
-                        <p class="text-xs text-slate-500">Consultation et téléchargement direct (<span id="total-count">0</span> document(s))</p>
+                        <p class="text-xs text-slate-500">Partagés par la classe (<span id="total-count">0</span> document(s))</p>
                     </div>
                 </div>
+                <button onclick="ouvrirModalUpload()" class="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-indigo-200">
+                    <i data-lucide="upload" class="h-3.5 w-3.5"></i> Ajouter un document
+                </button>
+            </div>
+
+            <!-- Barre de recherche des documents -->
+            <div class="relative">
+                <i data-lucide="search" class="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="doc-search-input" oninput="filtrerDocuments()" placeholder="Rechercher un document (nom, classe...)"
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-xs sm:text-sm">
             </div>
 
             <!-- ZONE D'AFFICHAGE DES FICHIERS -->
             <div id="drive-files-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Les cartes de documents seront générées ici -->
+                <div class="col-span-full text-center text-xs text-slate-400 py-6">Chargement des documents...</div>
             </div>
         </section>
 
@@ -183,6 +199,39 @@
         </div>
     </div>
 
+    <!-- MODALE D'AJOUT DE DOCUMENT -->
+    <div id="upload-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i data-lucide="upload" class="h-4 w-4 text-indigo-600"></i> Ajouter un document
+                </h3>
+                <button onclick="fermerModalUpload()" class="text-slate-400 hover:text-slate-700 transition">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <form id="upload-form" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Classe concernée</label>
+                    <select id="doc-category" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                        <option value="2nde">Seconde</option>
+                        <option value="1ere">Première</option>
+                        <option value="Terminale" selected>Terminale</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Fichier (PDF de préférence)</label>
+                    <input type="file" id="doc-file" accept=".pdf,.doc,.docx,image/*" required
+                        class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 file:text-xs file:font-bold hover:file:bg-indigo-100">
+                    <p class="text-[10px] text-slate-400 mt-1.5">5 Mo maximum</p>
+                </div>
+                <button type="submit" id="doc-submit-btn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50">
+                    <i data-lucide="upload" class="h-4 w-4"></i> <span id="doc-submit-label">Publier le document</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- SCRIPT JS -->
     <script src="config.js"></script>
     <script>
@@ -199,6 +248,7 @@
             document.getElementById('nav-avatar').textContent = profile.initials;
 
             await chargerExercicesRecents();
+            await chargerDocuments();
         })();
 
         // Charge les 6 derniers exercices postés, tous élèves confondus
@@ -237,22 +287,27 @@
             lucide.createIcons();
         }
 
-        // BASE DE DONNÉES LOCALE DES DOCUMENTS
-        // Placez vos fichiers PDF dans le dossier 'documents/' de votre projet
-        const tousLesFichiers = [
-            { id: "1", name: "Devoir_Maths_Limites_Terminale_S.pdf", url: "documents/Devoir_Maths_Limites_Terminale_S.pdf", categorie: "Terminale" },
-            { id: "2", name: "Composition_Physique_Cinématique_1ere_S.pdf", url: "documents/Composition_Physique_Cinématique_1ere_S.pdf", categorie: "1ere" },
-            { id: "3", name: "Bac_Epreuve_Mathématiques_Terminale.pdf", url: "documents/Bac_Epreuve_Mathématiques_Terminale.pdf", categorie: "Terminale" },
-            { id: "4", name: "Fascicule_Chimie_Benzene_Terminale.pdf", url: "documents/Fascicule_Chimie_Benzene_Terminale.pdf", categorie: "Terminale" },
-            { id: "5", name: "Devoir_Francais_Dissertation_2nde.pdf", url: "documents/Devoir_Francais_Dissertation_2nde.pdf", categorie: "2nde" },
-            { id: "6", name: "Document anglais-Terminale.pdf", url: "documents/anglais.pdf", categorie: "Terminale" },
-            { id: "7", name: "Fascicule_SVT_Exercice_1ere_S2.pdf", url: "documents/exo-svt.pdf", categorie: "1ere" }
-        ];
+        // ============================================
+        // BANQUE DE DOCUMENTS - connectée à Supabase
+        // ============================================
+        let tousLesDocuments = [];
 
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById('total-count').textContent = tousLesFichiers.length;
-            afficherFichiers(tousLesFichiers);
-        });
+        async function chargerDocuments() {
+            const { data: docs, error } = await window.supabaseClient
+                .from('documents')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Erreur chargement documents :", error);
+                afficherToast(traduireErreur(error), 'error');
+                return;
+            }
+
+            tousLesDocuments = docs || [];
+            document.getElementById('total-count').textContent = tousLesDocuments.length;
+            afficherFichiers(tousLesDocuments);
+        }
 
         // Générer les cartes HTML
         function afficherFichiers(fichiers) {
@@ -260,20 +315,20 @@
             grid.innerHTML = '';
 
             if (fichiers.length === 0) {
-                grid.innerHTML = `<div class="col-span-full bg-slate-50 p-6 rounded-xl text-center text-xs text-slate-500">Aucun document ne correspond à votre recherche.</div>`;
+                grid.innerHTML = `<div class="col-span-full bg-slate-50 p-6 rounded-xl text-center text-xs text-slate-500">Aucun document pour le moment. Sois le premier à en ajouter !</div>`;
                 return;
             }
 
-            fichiers.forEach(file => {
+            fichiers.forEach((file, i) => {
                 const carteHTML = `
-                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between hover:border-indigo-400 hover:shadow-sm transition">
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between hover:border-indigo-400 hover:shadow-sm transition opacity-0 translate-y-1" style="animation: fadeInUp 0.35s ease forwards; animation-delay: ${i * 40}ms;">
                         <div class="flex items-start gap-3 mb-3">
                             <div class="p-2.5 bg-indigo-100 text-indigo-700 rounded-lg flex-none mt-0.5">
                                 <i data-lucide="file-text" class="h-5 w-5"></i>
                             </div>
                             <div class="overflow-hidden">
                                 <h4 class="font-bold text-slate-800 text-xs truncate" title="${file.name}">${file.name}</h4>
-                                <p class="text-[10px] text-slate-500 mt-0.5">Document PDF / Épreuve</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">${file.category}</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2 mt-2">
@@ -281,7 +336,7 @@
                                 <i data-lucide="eye" class="h-3.5 w-3.5"></i>
                                 <span>Aperçu</span>
                             </button>
-                            <a href="${file.url}" download="${file.name}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] py-2 rounded-lg transition flex items-center justify-center gap-1.5 text-center">
+                            <a href="${file.url}" download="${file.name}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] py-2 rounded-lg transition flex items-center justify-center gap-1.5 text-center">
                                 <i data-lucide="download" class="h-3.5 w-3.5"></i>
                                 <span>Télécharger</span>
                             </a>
@@ -294,22 +349,29 @@
         }
 
         // Filtre instantané lorsqu'on tape dans le champ
-        function filtrerEnTempsReel() {
-            const requete = document.getElementById('search-input').value.trim().toLowerCase();
-            const filtres = tousLesFichiers.filter(f => f.name.toLowerCase().includes(requete) || f.categorie.toLowerCase().includes(requete));
+        function filtrerDocuments() {
+            const requete = document.getElementById('doc-search-input').value.trim().toLowerCase();
+            const filtres = tousLesDocuments.filter(f => f.name.toLowerCase().includes(requete) || f.category.toLowerCase().includes(requete));
             afficherFichiers(filtres);
         }
 
-        // Soumission de la recherche
-        function rechercherRessource(e) {
-            e.preventDefault();
-            filtrerEnTempsReel();
+        // Barre de recherche principale (en haut de page) : redirige vers la recherche de documents
+        function filtrerDepuisHero() {
+            const valeur = document.getElementById('search-input').value;
+            document.getElementById('doc-search-input').value = valeur;
+            filtrerDocuments();
         }
 
-        // Raccourcis / Tags
+        function rechercherRessource(e) {
+            e.preventDefault();
+            filtrerDepuisHero();
+            document.getElementById('drive-files-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         function appliquerFiltre(terme) {
             document.getElementById('search-input').value = terme;
-            filtrerEnTempsReel();
+            filtrerDepuisHero();
+            document.getElementById('drive-files-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // Visionneuse PDF
@@ -324,6 +386,75 @@
             document.getElementById('pdf-modal').classList.add('hidden');
             document.getElementById('pdf-viewer').src = '';
         }
+
+        // ============================================
+        // MODALE D'UPLOAD DE DOCUMENT
+        // ============================================
+        function ouvrirModalUpload() {
+            document.getElementById('upload-modal').classList.remove('hidden');
+        }
+
+        function fermerModalUpload() {
+            document.getElementById('upload-modal').classList.add('hidden');
+            document.getElementById('upload-form').reset();
+        }
+
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const user = await window.supabaseClient.auth.getUser();
+            const userId = user.data.user?.id;
+            if (!userId) return;
+
+            const file = document.getElementById('doc-file').files[0];
+            const category = document.getElementById('doc-category').value;
+            if (!file) return;
+
+            const btn = document.getElementById('doc-submit-btn');
+            const label = document.getElementById('doc-submit-label');
+            btn.disabled = true;
+            label.textContent = 'Envoi en cours...';
+
+            try {
+                const fileExt = file.name.split('.').pop();
+                const safeName = `${userId}-${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await window.supabaseClient
+                    .storage
+                    .from('documents-files')
+                    .upload(safeName, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = window.supabaseClient
+                    .storage
+                    .from('documents-files')
+                    .getPublicUrl(safeName);
+
+                const { error: insertError } = await window.supabaseClient
+                    .from('documents')
+                    .insert({ user_id: userId, name: file.name, url: urlData.publicUrl, category: category });
+
+                if (insertError) throw insertError;
+
+                afficherToast('Document ajouté avec succès !', 'success');
+                fermerModalUpload();
+                await chargerDocuments();
+
+            } catch (err) {
+                console.error(err);
+                afficherToast(traduireErreur(err), 'error');
+            } finally {
+                btn.disabled = false;
+                label.textContent = 'Publier le document';
+            }
+        });
     </script>
+
+    <style>
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </body>
 </html>

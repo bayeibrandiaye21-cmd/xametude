@@ -10,6 +10,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
 
@@ -234,7 +240,7 @@
                 .insert({ exercise_id: exerciseId, user_id: currentUser.id, content: content });
 
             if (error) {
-                alert("Erreur lors de l'envoi de la réponse : " + error.message);
+                afficherToast(traduireErreur(error), 'error');
                 btn.disabled = false;
                 label.textContent = 'Envoyer ma réponse';
                 return;
@@ -251,6 +257,7 @@
             btn.disabled = false;
             label.textContent = 'Envoyer ma réponse';
 
+            afficherToast('Ta réponse a été envoyée, merci d\'avoir aidé ! (+20 points)', 'success');
             await chargerReponses();
         });
     </script>

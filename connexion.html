@@ -8,6 +8,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Librairie Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
 <body class="bg-gradient-to-b from-indigo-900 to-indigo-800 font-sans text-slate-800 min-h-screen flex items-center justify-center p-4">
 
@@ -20,7 +26,7 @@
         </div>
 
         <!-- Carte principale -->
-        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6" style="animation: fadeInUp 0.4s ease;">
 
             <!-- Onglets Connexion / Inscription -->
             <div class="flex bg-slate-100 rounded-xl p-1">
@@ -32,8 +38,6 @@
                 </button>
             </div>
 
-            <!-- Message d'erreur / succès -->
-            <div id="message-box" class="hidden p-3 rounded-xl text-xs font-semibold text-center"></div>
 
             <!-- FORMULAIRE CONNEXION -->
             <form id="login-form" class="space-y-4">
@@ -119,19 +123,10 @@
         }
 
         function showMessage(text, type) {
-            const box = document.getElementById('message-box');
-            box.textContent = text;
-            box.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-emerald-50', 'text-emerald-600');
-            if (type === 'error') {
-                box.classList.add('bg-red-50', 'text-red-600');
-            } else {
-                box.classList.add('bg-emerald-50', 'text-emerald-600');
-            }
+            afficherToast(text, type === 'error' ? 'error' : 'success');
         }
 
-        function hideMessage() {
-            document.getElementById('message-box').classList.add('hidden');
-        }
+        function hideMessage() { /* conservé pour compatibilité, ne fait plus rien */ }
 
         // Si déjà connecté, redirige direct vers le tableau de bord
         (async () => {
@@ -152,7 +147,7 @@
             const { data, error } = await window.supabaseClient.auth.signUp({ email, password });
 
             if (error) {
-                showMessage("Erreur : " + error.message, 'error');
+                showMessage(traduireErreur(error), 'error');
                 return;
             }
 
@@ -165,7 +160,7 @@
                 .insert({ id: data.user.id, name: name, class: classe, initials: initials });
 
             if (profileError) {
-                showMessage("Erreur profil : " + profileError.message, 'error');
+                showMessage(traduireErreur(profileError), 'error');
                 return;
             }
 
@@ -191,5 +186,11 @@
             window.location.href = "xam.html";
         });
     </script>
+    <style>
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </body>
 </html>

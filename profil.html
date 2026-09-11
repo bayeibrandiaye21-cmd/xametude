@@ -7,6 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
 
@@ -333,11 +339,12 @@
                 .eq('id', currentUser.id);
 
             if (error) {
-                alert("Erreur lors de la sauvegarde : " + error.message);
+                afficherToast(traduireErreur(error), 'error');
                 return;
             }
 
             document.getElementById('edit-form').classList.add('hidden');
+            afficherToast('Profil mis à jour !', 'success');
             await chargerProfil();
         }
     </script>

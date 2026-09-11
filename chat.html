@@ -10,6 +10,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 h-dvh flex flex-col overflow-hidden">
 
@@ -306,6 +312,7 @@
             const contentHTML = parseYouTubeLinks(escapeHTML(msg.content));
 
             const wrapper = document.createElement('div');
+            wrapper.style.animation = 'msgIn 0.25s ease';
 
             if (isMine) {
                 wrapper.className = 'flex gap-3 max-w-2xl ml-auto flex-row-reverse';
@@ -358,7 +365,7 @@
 
             if (error) {
                 console.error("Erreur envoi message :", error);
-                alert("Le message n'a pas pu être envoyé. Réessaie.");
+                afficherToast(traduireErreur(error), 'error');
                 return;
             }
 
@@ -366,5 +373,12 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
     </script>
+
+    <style>
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </body>
 </html>
