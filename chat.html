@@ -43,7 +43,8 @@
             </div>
 
             <!-- Retour Tableau de Bord -->
-            <div>
+            <div class="flex items-center gap-1">
+                <div id="notif-bell-container"></div>
                 <a href="xam.html" class="text-xs font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-1.5">
                     <i data-lucide="arrow-left" class="h-4 w-4"></i> <span class="hidden sm:inline">Tableau de bord</span>
                 </a>
@@ -133,6 +134,7 @@
             document.getElementById('user-name-mini').textContent = currentProfile.name;
             document.getElementById('user-class-mini').textContent = currentProfile.class;
             document.getElementById('user-avatar-mini').textContent = currentProfile.initials;
+            initNotifBell('notif-bell-container', currentUser.id);
 
             await chargerSalons();
         })();

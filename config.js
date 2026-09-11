@@ -53,8 +53,99 @@ async function seDeconnecter() {
 }
 
 // ============================================
-// TRADUCTION DES ERREURS SUPABASE EN MESSAGES CLAIRS (FR)
+// CLOCHE DE NOTIFICATIONS (réutilisable sur toutes les pages)
+// Utilisation : initNotifBell('id-du-conteneur', currentUser.id)
 // ============================================
+function initNotifBell(containerId, currentUserId) {
+    const container = document.getElementById(containerId);
+    if (!container || !currentUserId) return;
+
+    container.innerHTML = `
+      <div class="relative">
+        <button id="notif-bell-btn" type="button" class="relative p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition">
+            <i data-lucide="bell" class="h-5 w-5"></i>
+            <span id="notif-badge" class="hidden absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+        </button>
+        <div id="notif-panel" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden">
+            <div class="p-3 border-b border-slate-100 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700">Notifications</span>
+                <button id="notif-mark-all" type="button" class="text-[10px] font-semibold text-indigo-600 hover:underline">Tout marquer comme lu</button>
+            </div>
+            <div id="notif-list" class="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                <div class="p-4 text-center text-xs text-slate-400">Chargement...</div>
+            </div>
+        </div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+
+    const btn = document.getElementById('notif-bell-btn');
+    const panel = document.getElementById('notif-panel');
+
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) panel.classList.add('hidden');
+    });
+
+    async function chargerNotifs() {
+        const { data: notifs, error } = await window.supabaseClient
+            .from('notifications')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .order('created_at', { ascending: false })
+            .limit(15);
+
+        if (error || !notifs) return;
+
+        const unread = notifs.filter(n => !n.is_read).length;
+        const badge = document.getElementById('notif-badge');
+        if (unread > 0) {
+            badge.textContent = unread > 9 ? '9+' : unread;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+
+        const list = document.getElementById('notif-list');
+        if (notifs.length === 0) {
+            list.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Aucune notification pour le moment.</div>';
+            return;
+        }
+
+        list.innerHTML = notifs.map(n => `
+            <a href="${n.link || '#'}" data-id="${n.id}" class="notif-item block p-3 hover:bg-slate-50 transition ${n.is_read ? '' : 'bg-indigo-50/50'}">
+                <div class="text-xs text-slate-700 ${n.is_read ? '' : 'font-semibold'}">${n.message}</div>
+                <div class="text-[10px] text-slate-400 mt-1">${new Date(n.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+            </a>
+        `).join('');
+
+        list.querySelectorAll('.notif-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                await window.supabaseClient.from('notifications').update({ is_read: true }).eq('id', item.dataset.id);
+            });
+        });
+    }
+
+    document.getElementById('notif-mark-all').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await window.supabaseClient.from('notifications').update({ is_read: true }).eq('user_id', currentUserId).eq('is_read', false);
+        await chargerNotifs();
+    });
+
+    chargerNotifs();
+
+    // Temps réel : nouvelle notification reçue
+    window.supabaseClient
+        .channel('notifs-' + currentUserId)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUserId}` }, () => {
+            chargerNotifs();
+            if (window.afficherToast) afficherToast('Nouvelle notification !', 'info');
+        })
+        .subscribe();
+}
 function traduireErreur(error) {
     if (!error) return "Une erreur inconnue est survenue.";
     const msg = (error.message || "").toLowerCase();

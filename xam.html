@@ -38,6 +38,7 @@
 
             <!-- Profil -->
             <div class="flex items-center gap-2">
+                <div id="notif-bell-container"></div>
                 <a href="profil.html" class="flex items-center gap-3 border-l border-slate-200 pl-4 hover:opacity-80 transition cursor-pointer">
                     <div id="nav-avatar" class="h-9 w-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center font-bold text-indigo-700 shadow-sm">
                         ...
@@ -246,6 +247,7 @@
             document.getElementById('nav-name').textContent = profile.name;
             document.getElementById('nav-class').textContent = profile.class;
             document.getElementById('nav-avatar').textContent = profile.initials;
+            initNotifBell('notif-bell-container', profile.id);
 
             await chargerExercicesRecents();
             await chargerDocuments();
