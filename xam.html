@@ -34,6 +34,7 @@
                 <a href="xam.html" class="text-indigo-600 font-bold">Tableau de bord</a>
                 <a href="chat.html" class="hover:text-indigo-600 transition">Salons d'entraide</a>
                 <a href="poser_exercice.html" class="hover:text-indigo-600 transition">Poser une question</a>
+                <a href="camarades.html" class="hover:text-indigo-600 transition">Camarades</a>
             </nav>
 
             <!-- Profil -->
@@ -101,7 +102,7 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         <!-- ACCÈS RAPIDE AUX SALONS & QUESTIONS -->
-        <section class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-6">
             
             <!-- Carte 1 : Salons -->
             <a href="chat.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
@@ -119,6 +120,15 @@
                 </div>
                 <h3 class="font-bold text-slate-800 text-base mb-1">Poser un problème</h3>
                 <p class="text-xs text-slate-500">Bloqué sur un devoir ? Publiez un énoncé et recevez des explications détaillées.</p>
+            </a>
+
+            <!-- Carte 3 : Camarades -->
+            <a href="camarades.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl w-fit mb-4 group-hover:bg-emerald-600 group-hover:text-white transition">
+                    <i data-lucide="users" class="h-6 w-6"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base mb-1">Camarades de classe</h3>
+                <p class="text-xs text-slate-500">Retrouve tes camarades, consulte leurs profils et le classement de la classe.</p>
             </a>
 
         </section>
@@ -274,11 +284,11 @@
             };
 
             container.innerHTML = exercises.map(ex => `
-                <a href="exercice_detail.html?id=${ex.id}" class="p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition flex items-center justify-between gap-3">
+                <div onclick="window.location.href='exercice_detail.html?id=${ex.id}'" class="p-4 border border-slate-100 rounded-xl hover:border-indigo-200 hover:bg-slate-50 transition flex items-center justify-between gap-3 cursor-pointer">
                     <div class="space-y-1 overflow-hidden">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">${ex.subject}</span>
-                            <span class="text-[10px] text-slate-400">par ${ex.profiles?.name || 'Élève'}</span>
+                            <span class="text-[10px] text-slate-400">par <a href="profil.html?user=${ex.user_id}" onclick="event.stopPropagation()" class="hover:text-indigo-600 hover:underline">${ex.profiles?.name || 'Élève'}</a></span>
                         </div>
                         <div class="text-xs font-bold text-slate-800 truncate">${ex.title}</div>
                     </div>

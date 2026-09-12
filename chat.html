@@ -86,12 +86,23 @@
 
             <!-- BARRE DE SAISIE -->
             <div class="p-3 sm:p-4 bg-white border-t border-slate-200 flex-none">
+                <!-- Indicateur d'enregistrement vocal -->
+                <div id="recording-indicator" class="hidden max-w-4xl mx-auto mb-2 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                    Enregistrement en cours... <span id="recording-timer">0:00</span>
+                    <button type="button" onclick="annulerEnregistrement()" class="ml-auto text-red-500 hover:text-red-700 font-bold">Annuler</button>
+                </div>
+
                 <form id="chat-form" class="flex items-center gap-2 max-w-4xl mx-auto">
 
                     <input type="text" id="chat-input" placeholder="Écris ton message ou colle un lien YouTube..." required
                            class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-xs sm:text-sm">
 
-                    <button type="submit" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition">
+                    <button type="button" id="mic-btn" title="Message vocal" class="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex-none">
+                        <i data-lucide="mic" class="h-4 w-4"></i>
+                    </button>
+
+                    <button type="submit" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none">
                         <i data-lucide="send" class="h-4 w-4"></i>
                     </button>
 
@@ -273,7 +284,7 @@
         // CONVERTIR LES LIENS YOUTUBE EN LECTEUR IFRAME
         // ============================================
         function parseYouTubeLinks(text) {
-            const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[&\?][^\s]*)?/g;
+            const ytRegex = /(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&][^\s]*)?/g;
 
             return text.replace(ytRegex, function(match, videoId) {
                 return `
@@ -311,7 +322,10 @@
             const authorName = isMine ? 'Moi' : (msg.profiles?.name || 'Élève');
             const authorInitials = msg.profiles?.initials || '??';
             const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            const contentHTML = parseYouTubeLinks(escapeHTML(msg.content));
+
+            const contentHTML = msg.type === 'audio'
+                ? `<div class="flex items-center gap-2"><i data-lucide="mic" class="h-3.5 w-3.5 flex-none opacity-70"></i><audio controls src="${msg.audio_url}" class="max-w-[220px] h-9" style="filter: ${isMine ? 'invert(1) hue-rotate(180deg)' : 'none'};"></audio></div>`
+                : parseYouTubeLinks(escapeHTML(msg.content));
 
             const wrapper = document.createElement('div');
             wrapper.style.animation = 'msgIn 0.25s ease';
@@ -333,10 +347,10 @@
             } else {
                 wrapper.className = 'flex gap-3 max-w-2xl';
                 wrapper.innerHTML = `
-                    <div class="h-8 w-8 rounded-full bg-emerald-600 text-white font-bold flex flex-none items-center justify-center text-xs">${authorInitials}</div>
+                    <a href="profil.html?user=${msg.user_id}" class="h-8 w-8 rounded-full bg-emerald-600 text-white font-bold flex flex-none items-center justify-center text-xs hover:opacity-80 transition">${authorInitials}</a>
                     <div>
                         <div class="flex items-baseline gap-2 mb-1">
-                            <span class="text-xs font-bold text-slate-800">${authorName}</span>
+                            <a href="profil.html?user=${msg.user_id}" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition">${authorName}</a>
                             <span class="text-[10px] text-slate-400">${time}</span>
                         </div>
                         <div class="bg-white p-3.5 rounded-2xl rounded-tl-none border border-slate-200 text-xs text-slate-700 shadow-sm leading-relaxed">
@@ -347,6 +361,7 @@
             }
 
             messagesContainer.appendChild(wrapper);
+            lucide.createIcons();
         }
 
         // ============================================
@@ -374,6 +389,120 @@
             afficherMessage({ ...data, profiles: { name: currentProfile.name, initials: currentProfile.initials } });
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
+
+        // ============================================
+        // MESSAGES VOCAUX (enregistrement + envoi)
+        // ============================================
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingStartTime = null;
+        let recordingTimerInterval = null;
+        let isCancelled = false;
+
+        const micBtn = document.getElementById('mic-btn');
+        const recordingIndicator = document.getElementById('recording-indicator');
+        const recordingTimer = document.getElementById('recording-timer');
+
+        micBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                arreterEnregistrement();
+                return;
+            }
+            await demarrerEnregistrement();
+        });
+
+        async function demarrerEnregistrement() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                isCancelled = false;
+
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    clearInterval(recordingTimerInterval);
+                    recordingIndicator.classList.add('hidden');
+                    micBtn.classList.remove('text-red-600', 'bg-red-50');
+
+                    if (isCancelled || audioChunks.length === 0) return;
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await envoyerMessageVocal(audioBlob);
+                };
+
+                mediaRecorder.start();
+                recordingStartTime = Date.now();
+                recordingIndicator.classList.remove('hidden');
+                micBtn.classList.add('text-red-600', 'bg-red-50');
+
+                recordingTimerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                    const mins = Math.floor(elapsed / 60);
+                    const secs = elapsed % 60;
+                    recordingTimer.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+                    // Limite de sécurité : 2 minutes max par message vocal
+                    if (elapsed >= 120) arreterEnregistrement();
+                }, 250);
+
+            } catch (err) {
+                console.error(err);
+                afficherToast("Impossible d'accéder au microphone. Vérifie les autorisations de ton navigateur.", 'error');
+            }
+        }
+
+        function arreterEnregistrement() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        }
+
+        function annulerEnregistrement() {
+            isCancelled = true;
+            arreterEnregistrement();
+        }
+
+        async function envoyerMessageVocal(audioBlob) {
+            if (!currentChannelId) return;
+
+            try {
+                const fileName = `${currentUser.id}-${Date.now()}.webm`;
+
+                const { error: uploadError } = await window.supabaseClient
+                    .storage
+                    .from('voice-messages')
+                    .upload(fileName, audioBlob);
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = window.supabaseClient
+                    .storage
+                    .from('voice-messages')
+                    .getPublicUrl(fileName);
+
+                const { data, error } = await window.supabaseClient
+                    .from('messages')
+                    .insert({
+                        channel_id: currentChannelId,
+                        user_id: currentUser.id,
+                        content: '🎤 Message vocal',
+                        type: 'audio',
+                        audio_url: urlData.publicUrl
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                afficherMessage({ ...data, profiles: { name: currentProfile.name, initials: currentProfile.initials } });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            } catch (err) {
+                console.error(err);
+                afficherToast(traduireErreur(err), 'error');
+            }
+        }
     </script>
 
     <style>
