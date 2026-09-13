@@ -8,6 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- KaTeX : affichage des formules mathématiques -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="manifest" href="manifest.json">
@@ -409,7 +413,17 @@
                 `;
             }
 
-            return parseYouTubeLinks(escapeHTML(msg.content));
+            return parseYouTubeLinks(formaterTexteRiche(escapeHTML(msg.content)));
+        }
+
+        // Convertit un minimum de formatage Markdown (gras, italique, retours à la ligne)
+        // Les formules LaTeX ($...$ et $$...$$) sont laissées intactes, KaTeX s'en charge ensuite
+        function formaterTexteRiche(text) {
+            return text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
         }
 
         function afficherMessage(msg) {
@@ -482,6 +496,19 @@
 
             messagesContainer.appendChild(wrapper);
             lucide.createIcons();
+
+            // Rendu des formules mathématiques (utile surtout pour les réponses de l'IA)
+            if (window.renderMathInElement) {
+                renderMathInElement(wrapper, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true }
+                    ],
+                    throwOnError: false
+                });
+            }
         }
 
         // ============================================
