@@ -109,7 +109,11 @@
                         <i data-lucide="paperclip" class="h-4 w-4"></i>
                     </button>
 
-                    <input type="text" id="chat-input" placeholder="Écris ton message ou colle un lien YouTube..."
+                    <button type="button" onclick="document.getElementById('chat-input').value = '@IA '; document.getElementById('chat-input').focus();" title="Demander à l'IA" class="p-2.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition flex-none">
+                        <i data-lucide="sparkles" class="h-4 w-4"></i>
+                    </button>
+
+                    <input type="text" id="chat-input" placeholder="Écris ton message, colle un lien YouTube, ou tape @IA pour poser une question..."
                            class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-xs sm:text-sm">
 
                     <button type="button" id="mic-btn" title="Message vocal" class="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex-none">
@@ -349,10 +353,11 @@
                 if (!videoId) return match;
 
                 return `
-                    <div class="mt-2 mb-1 rounded-xl overflow-hidden border border-indigo-400/30 shadow-md w-full max-w-sm sm:max-w-md">
-                        <div class="relative w-full" style="padding-top: 56.25%;">
+                    <div class="mt-2 mb-1 rounded-xl overflow-hidden border border-indigo-400/30 shadow-md" style="width: 260px; max-width: 100%;">
+                        <div class="relative" style="width: 260px; max-width: 100%; padding-top: 146px;">
                             <iframe 
                                 class="absolute top-0 left-0 w-full h-full rounded-xl"
+                                style="width: 260px; max-width: 100%; height: 146px;"
                                 src="https://www.youtube.com/embed/${videoId}" 
                                 title="Vidéo YouTube" 
                                 frameborder="0" 
@@ -412,9 +417,10 @@
             const emptyMsg = messagesContainer.querySelector('.text-center');
             if (emptyMsg) emptyMsg.remove();
 
-            const isMine = msg.user_id === currentUser.id;
-            const authorName = isMine ? 'Moi' : (msg.profiles?.name || 'Élève');
-            const authorInitials = msg.profiles?.initials || '??';
+            const isIA = msg.type === 'ai';
+            const isMine = !isIA && msg.user_id === currentUser.id;
+            const authorName = isIA ? 'Assistant IA' : (isMine ? 'Moi' : (msg.profiles?.name || 'Élève'));
+            const authorInitials = isIA ? '🤖' : (msg.profiles?.initials || '??');
             const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
             const contentHTML = construireContenuMessage(msg, isMine);
@@ -429,7 +435,21 @@
                 </button>
             ` : '';
 
-            if (isMine) {
+            if (isIA) {
+                wrapper.className = 'flex gap-3 max-w-2xl';
+                wrapper.innerHTML = `
+                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex flex-none items-center justify-center text-sm shadow-sm">🤖</div>
+                    <div>
+                        <div class="flex items-baseline gap-2 mb-1">
+                            <span class="text-xs font-bold text-amber-700">${authorName}</span>
+                            <span class="text-[10px] text-slate-400">${time}</span>
+                        </div>
+                        <div class="bg-amber-50 p-3.5 rounded-2xl rounded-tl-none border border-amber-200 text-xs text-slate-700 shadow-sm leading-relaxed whitespace-pre-line">
+                            ${contentHTML}
+                        </div>
+                    </div>
+                `;
+            } else if (isMine) {
                 wrapper.className = 'flex gap-3 max-w-2xl ml-auto flex-row-reverse';
                 wrapper.innerHTML = `
                     <div class="h-8 w-8 rounded-full bg-indigo-600 text-white font-bold flex flex-none items-center justify-center text-xs">${authorInitials}</div>
@@ -548,6 +568,11 @@
                 afficherMessage({ ...data, profiles: { name: currentProfile.name, initials: currentProfile.initials } });
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+                // Si l'élève a mentionné @IA, on demande à l'assistant de répondre dans le salon
+                if (text && /@ia\b/i.test(text)) {
+                    demanderIA(text);
+                }
+
             } catch (error) {
                 console.error("Erreur envoi message :", error);
                 afficherToast(traduireErreur(error), 'error');
@@ -557,6 +582,44 @@
         });
 
         // ============================================
+        // ASSISTANT IA : appelée quand un message contient @IA
+        // ============================================
+        async function demanderIA(question) {
+            // Petit indicateur "l'IA réfléchit..."
+            const thinkingId = 'ia-thinking-' + Date.now();
+            const thinkingHTML = `
+                <div id="${thinkingId}" class="flex gap-3 max-w-2xl" style="animation: msgIn 0.25s ease;">
+                    <div class="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex flex-none items-center justify-center text-sm shadow-sm">🤖</div>
+                    <div class="bg-amber-50 border border-amber-200 px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs text-amber-700 font-semibold">
+                        L'IA réfléchit...
+                    </div>
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML('beforeend', thinkingHTML);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                const response = await fetch('/api/ask-ia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        channelId: currentChannelId,
+                        question: question.replace(/@ia\b/i, '').trim(),
+                        askerName: currentProfile.name
+                    })
+                });
+
+                if (!response.ok) throw new Error('Réponse IA indisponible');
+                // La réponse de l'IA arrivera automatiquement via le temps réel (comme un message normal)
+
+            } catch (err) {
+                console.error(err);
+                afficherToast("L'assistant IA n'a pas pu répondre pour le moment.", 'error');
+            } finally {
+                const el = document.getElementById(thinkingId);
+                if (el) el.remove();
+            }
+        }
         // MESSAGES VOCAUX (enregistrement + envoi)
         // ============================================
         let mediaRecorder = null;
