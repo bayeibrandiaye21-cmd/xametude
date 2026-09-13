@@ -93,16 +93,30 @@
                     <button type="button" onclick="annulerEnregistrement()" class="ml-auto text-red-500 hover:text-red-700 font-bold">Annuler</button>
                 </div>
 
+                <!-- Aperçu du fichier sélectionné -->
+                <div id="file-preview" class="hidden max-w-4xl mx-auto mb-2 flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <i data-lucide="paperclip" class="h-3.5 w-3.5 flex-none"></i>
+                    <span id="file-preview-name" class="truncate flex-1"></span>
+                    <button type="button" onclick="annulerFichier()" class="text-indigo-400 hover:text-red-500 font-bold flex-none">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+
                 <form id="chat-form" class="flex items-center gap-2 max-w-4xl mx-auto">
 
-                    <input type="text" id="chat-input" placeholder="Écris ton message ou colle un lien YouTube..." required
+                    <input type="file" id="file-input" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx">
+                    <button type="button" id="attach-btn" title="Joindre un fichier" class="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex-none">
+                        <i data-lucide="paperclip" class="h-4 w-4"></i>
+                    </button>
+
+                    <input type="text" id="chat-input" placeholder="Écris ton message ou colle un lien YouTube..."
                            class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-xs sm:text-sm">
 
                     <button type="button" id="mic-btn" title="Message vocal" class="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex-none">
                         <i data-lucide="mic" class="h-4 w-4"></i>
                     </button>
 
-                    <button type="submit" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none">
+                    <button type="submit" id="send-btn" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none">
                         <i data-lucide="send" class="h-4 w-4"></i>
                     </button>
 
@@ -277,16 +291,63 @@
                     afficherMessage({ ...payload.new, profiles: authorProfile });
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 })
+                .on('postgres_changes', {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'messages'
+                }, (payload) => {
+                    const el = messagesContainer.querySelector(`[data-message-id="${payload.old.id}"]`);
+                    if (el) el.remove();
+                })
                 .subscribe();
         }
 
         // ============================================
-        // CONVERTIR LES LIENS YOUTUBE EN LECTEUR IFRAME
+        // SUPPRIMER UN MESSAGE (uniquement les siens)
         // ============================================
-        function parseYouTubeLinks(text) {
-            const ytRegex = /(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&][^\s]*)?/g;
+        async function supprimerMessage(messageId) {
+            const el = messagesContainer.querySelector(`[data-message-id="${messageId}"]`);
+            if (el) el.remove();
 
-            return text.replace(ytRegex, function(match, videoId) {
+            const { error } = await window.supabaseClient
+                .from('messages')
+                .delete()
+                .eq('id', messageId);
+
+            if (error) {
+                afficherToast(traduireErreur(error), 'error');
+            }
+        }
+
+        // ============================================
+        // CONVERTIR LES LIENS YOUTUBE EN LECTEUR IFRAME (détection robuste)
+        // ============================================
+        function extraireIdYoutube(url) {
+            try {
+                const u = new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url);
+                const host = u.hostname.replace(/^www\.|^m\.|^music\./, '');
+
+                if (host === 'youtu.be') {
+                    return u.pathname.slice(1, 12) || null;
+                }
+                if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+                    if (u.searchParams.get('v')) return u.searchParams.get('v').slice(0, 11);
+                    const parts = u.pathname.split('/').filter(Boolean);
+                    if (['shorts', 'embed', 'live'].includes(parts[0])) {
+                        return parts[1] ? parts[1].slice(0, 11) : null;
+                    }
+                }
+            } catch (e) { /* URL invalide, on ignore */ }
+            return null;
+        }
+
+        function parseYouTubeLinks(text) {
+            const urlRegex = /(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)*(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\/[^\s]+/g;
+
+            return text.replace(urlRegex, function(match) {
+                const videoId = extraireIdYoutube(match);
+                if (!videoId) return match;
+
                 return `
                     <div class="mt-2 mb-1 rounded-xl overflow-hidden border border-indigo-400/30 shadow-md w-full max-w-sm sm:max-w-md">
                         <div class="relative w-full" style="padding-top: 56.25%;">
@@ -313,6 +374,39 @@
         // ============================================
         // AFFICHER UN MESSAGE DANS LA CONVERSATION
         // ============================================
+        function typeDeFichier(fileName) {
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
+            if (['mp4', 'webm', 'mov', 'ogg'].includes(ext)) return 'video';
+            return 'document';
+        }
+
+        function construireContenuMessage(msg, isMine) {
+            if (msg.type === 'audio') {
+                return `<div class="flex items-center gap-2"><i data-lucide="mic" class="h-3.5 w-3.5 flex-none opacity-70"></i><audio controls src="${msg.audio_url}" class="max-w-[220px] h-9" style="filter: ${isMine ? 'invert(1) hue-rotate(180deg)' : 'none'};"></audio></div>`;
+            }
+
+            if (msg.type === 'file' && msg.file_url) {
+                const ft = typeDeFichier(msg.file_name);
+                const safeName = escapeHTML(msg.file_name || 'Fichier');
+                if (ft === 'image') {
+                    return `<a href="${msg.file_url}" target="_blank"><img src="${msg.file_url}" alt="${safeName}" class="rounded-xl max-w-[220px] max-h-60 object-cover border border-white/20"></a>`;
+                }
+                if (ft === 'video') {
+                    return `<video controls src="${msg.file_url}" class="rounded-xl max-w-[220px] max-h-60"></video>`;
+                }
+                return `
+                    <a href="${msg.file_url}" target="_blank" download="${safeName}" class="flex items-center gap-2 ${isMine ? 'bg-indigo-700/50' : 'bg-slate-100'} px-3 py-2 rounded-xl hover:opacity-80 transition">
+                        <i data-lucide="file-text" class="h-4 w-4 flex-none"></i>
+                        <span class="text-xs font-semibold truncate max-w-[160px]">${safeName}</span>
+                        <i data-lucide="download" class="h-3.5 w-3.5 flex-none ml-auto"></i>
+                    </a>
+                `;
+            }
+
+            return parseYouTubeLinks(escapeHTML(msg.content));
+        }
+
         function afficherMessage(msg) {
             // Enlève le message "aucun message" si présent
             const emptyMsg = messagesContainer.querySelector('.text-center');
@@ -323,12 +417,17 @@
             const authorInitials = msg.profiles?.initials || '??';
             const time = new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-            const contentHTML = msg.type === 'audio'
-                ? `<div class="flex items-center gap-2"><i data-lucide="mic" class="h-3.5 w-3.5 flex-none opacity-70"></i><audio controls src="${msg.audio_url}" class="max-w-[220px] h-9" style="filter: ${isMine ? 'invert(1) hue-rotate(180deg)' : 'none'};"></audio></div>`
-                : parseYouTubeLinks(escapeHTML(msg.content));
+            const contentHTML = construireContenuMessage(msg, isMine);
 
             const wrapper = document.createElement('div');
             wrapper.style.animation = 'msgIn 0.25s ease';
+            wrapper.dataset.messageId = msg.id;
+
+            const deleteBtnHTML = isMine ? `
+                <button onclick="supprimerMessage('${msg.id}')" title="Supprimer" class="text-slate-300 hover:text-red-500 transition flex-none">
+                    <i data-lucide="trash-2" class="h-3 w-3"></i>
+                </button>
+            ` : '';
 
             if (isMine) {
                 wrapper.className = 'flex gap-3 max-w-2xl ml-auto flex-row-reverse';
@@ -336,6 +435,7 @@
                     <div class="h-8 w-8 rounded-full bg-indigo-600 text-white font-bold flex flex-none items-center justify-center text-xs">${authorInitials}</div>
                     <div class="text-right">
                         <div class="flex items-baseline gap-2 justify-end mb-1">
+                            ${deleteBtnHTML}
                             <span class="text-xs font-bold text-slate-800">${authorName}</span>
                             <span class="text-[10px] text-slate-400">${time}</span>
                         </div>
@@ -365,29 +465,95 @@
         }
 
         // ============================================
-        // ENVOYER UN MESSAGE
+        // PIÈCE JOINTE (photo / vidéo / document)
+        // ============================================
+        const fileInput = document.getElementById('file-input');
+        const attachBtn = document.getElementById('attach-btn');
+        const filePreview = document.getElementById('file-preview');
+        const filePreviewName = document.getElementById('file-preview-name');
+        let fichierSelectionne = null;
+
+        attachBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            if (file.size > 50 * 1024 * 1024) {
+                afficherToast('Ce fichier dépasse 50 Mo, choisis-en un plus petit.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            fichierSelectionne = file;
+            filePreviewName.textContent = file.name;
+            filePreview.classList.remove('hidden');
+        });
+
+        function annulerFichier() {
+            fichierSelectionne = null;
+            fileInput.value = '';
+            filePreview.classList.add('hidden');
+        }
+
+        // ============================================
+        // ENVOYER UN MESSAGE (texte et/ou pièce jointe)
         // ============================================
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = chatInput.value.trim();
-            if (!text || !currentChannelId) return;
+            if (!currentChannelId) return;
+            if (!text && !fichierSelectionne) return;
 
-            chatInput.value = '';
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
 
-            const { data, error } = await window.supabaseClient
-                .from('messages')
-                .insert({ channel_id: currentChannelId, user_id: currentUser.id, content: text })
-                .select()
-                .single();
+            try {
+                let payload = { channel_id: currentChannelId, user_id: currentUser.id, content: text || '' };
 
-            if (error) {
+                if (fichierSelectionne) {
+                    const file = fichierSelectionne;
+                    const fileExt = file.name.split('.').pop();
+                    const safeName = `${currentUser.id}-${Date.now()}.${fileExt}`;
+
+                    const { error: uploadError } = await window.supabaseClient
+                        .storage
+                        .from('chat-files')
+                        .upload(safeName, file);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = window.supabaseClient
+                        .storage
+                        .from('chat-files')
+                        .getPublicUrl(safeName);
+
+                    payload.type = 'file';
+                    payload.file_url = urlData.publicUrl;
+                    payload.file_name = file.name;
+                    if (!text) payload.content = '📎 ' + file.name;
+                }
+
+                chatInput.value = '';
+                annulerFichier();
+
+                const { data, error } = await window.supabaseClient
+                    .from('messages')
+                    .insert(payload)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                afficherMessage({ ...data, profiles: { name: currentProfile.name, initials: currentProfile.initials } });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            } catch (error) {
                 console.error("Erreur envoi message :", error);
                 afficherToast(traduireErreur(error), 'error');
-                return;
+            } finally {
+                sendBtn.disabled = false;
             }
-
-            afficherMessage({ ...data, profiles: { name: currentProfile.name, initials: currentProfile.initials } });
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
 
         // ============================================
