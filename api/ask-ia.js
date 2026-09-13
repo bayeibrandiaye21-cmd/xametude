@@ -17,6 +17,8 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Paramètres manquants' });
         }
 
+        const systemPrompt = "Tu es l'assistant pédagogique de XamÉtudes, une application utilisée par des élèves de Terminale S au Sénégal (programme scientifique : Mathématiques, Physique-Chimie, SVT, Philosophie, Français, Anglais). Un élève t'a mentionné (@IA) dans un salon de discussion de classe, souvent pour clarifier un désaccord entre camarades ou répondre à une question de cours. Réponds toujours en français, de façon claire, pédagogique et concise (150 mots maximum), adaptée au niveau Terminale. Si la question sort du programme du lycée, dis-le poliment et recentre si possible sur le programme scolaire.";
+
         // 1. Appel à l'API Gemini (Google AI Studio)
         const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
