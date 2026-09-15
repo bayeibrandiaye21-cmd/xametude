@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+<body class="overflow-x-hidden bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
 
     <!-- NAVBAR TOP -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
@@ -62,9 +62,13 @@
 
                 <!-- Profil de l'auteur -->
                 <div class="flex items-center gap-3 pt-1 border-b border-slate-100 pb-4">
-                    <div id="ex-author-avatar" class="h-10 w-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">??</div>
+                    <a id="ex-author-avatar-link" href="#" class="h-10 w-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm hover:opacity-80 transition">
+                        <span id="ex-author-avatar">??</span>
+                    </a>
                     <div>
-                        <div id="ex-author-name" class="text-xs font-bold text-slate-800"></div>
+                        <a id="ex-author-name-link" href="#" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition">
+                            <span id="ex-author-name"></span>
+                        </a>
                         <div id="ex-date" class="text-[10px] text-slate-400"></div>
                     </div>
                 </div>
@@ -177,6 +181,8 @@
             document.getElementById('ex-title').textContent = ex.title;
             document.getElementById('ex-author-name').textContent = ex.profiles?.name || 'Élève';
             document.getElementById('ex-author-avatar').textContent = ex.profiles?.initials || initiales(ex.profiles?.name);
+            document.getElementById('ex-author-name-link').href = 'profil.html?user=' + ex.user_id;
+            document.getElementById('ex-author-avatar-link').href = 'profil.html?user=' + ex.user_id;
             document.getElementById('ex-date').textContent = formatDate(ex.created_at);
             document.getElementById('ex-description').textContent = ex.description;
 
@@ -216,9 +222,9 @@
                 <div class="bg-white rounded-2xl p-6 border ${a.is_validated ? 'border-emerald-200' : 'border-slate-200'} shadow-sm space-y-3 relative">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs">${a.profiles?.initials || initiales(a.profiles?.name)}</div>
+                            <a href="profil.html?user=${a.user_id}" class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs hover:opacity-80 transition">${a.profiles?.initials || initiales(a.profiles?.name)}</a>
                             <div>
-                                <div class="text-xs font-bold text-slate-800">${a.profiles?.name || 'Élève'}</div>
+                                <a href="profil.html?user=${a.user_id}" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition">${a.profiles?.name || 'Élève'}</a>
                                 <div class="text-[10px] text-slate-400">${formatDate(a.created_at)}</div>
                             </div>
                         </div>
