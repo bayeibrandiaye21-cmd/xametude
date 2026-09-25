@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
+<body class="overflow-x-hidden bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
 
     <!-- NAVBAR TOP -->
     <header class="bg-white border-b border-slate-200 h-16 sticky top-0 z-40">
@@ -103,7 +103,7 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         <!-- ACCÈS RAPIDE AUX SALONS & QUESTIONS -->
-        <section class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <!-- Carte 1 : Salons -->
             <a href="chat.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
@@ -123,7 +123,16 @@
                 <p class="text-xs text-slate-500">Bloqué sur un devoir ? Publiez un énoncé et recevez des explications détaillées.</p>
             </a>
 
-            <!-- Carte 3 : Camarades -->
+            <!-- Carte 3 : Professeur IA -->
+            <a href="professeur-ia.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-xl w-fit mb-4 group-hover:bg-amber-500 group-hover:text-white transition">
+                    <i data-lucide="graduation-cap" class="h-6 w-6"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base mb-1">Professeur IA</h3>
+                <p class="text-xs text-slate-500">Dépose le PDF d'un cours et reçois un résumé structuré, à lire ou à écouter.</p>
+            </a>
+
+            <!-- Carte 4 : Camarades -->
             <a href="camarades.html" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group">
                 <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl w-fit mb-4 group-hover:bg-emerald-600 group-hover:text-white transition">
                     <i data-lucide="users" class="h-6 w-6"></i>
@@ -151,8 +160,8 @@
                 </a>
             </div>
 
-            <div id="exercises-list" class="space-y-3">
-                <div class="text-center text-xs text-slate-400 py-6">Chargement des exercices...</div>
+            <div id="exercises-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
+                <div class="col-span-full text-center text-xs text-slate-400 py-6">Chargement des exercices...</div>
             </div>
         </section>
 
@@ -275,7 +284,7 @@
             const container = document.getElementById('exercises-list');
 
             if (error || !exercises || exercises.length === 0) {
-                container.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">Aucun exercice publié pour le moment. Sois le premier !</div>';
+                container.innerHTML = '<div class="col-span-full text-center text-xs text-slate-400 py-6">Aucun exercice publié pour le moment. Sois le premier !</div>';
                 return;
             }
 
@@ -294,7 +303,7 @@
                         <div class="text-xs font-bold text-slate-800 truncate">${ex.title}</div>
                     </div>
                     <span class="flex-none text-xs font-semibold px-2.5 py-1 rounded-lg ${statusStyle[ex.status] || statusStyle['En attente']}">${ex.status}</span>
-                </a>
+                </div>
             `).join('');
 
             lucide.createIcons();
@@ -322,7 +331,9 @@
             afficherFichiers(tousLesDocuments);
         }
 
-        // Générer les cartes HTML
+        let nombreDocumentsAffiches = 6;
+
+        // Générer les cartes HTML (avec limite + bouton "Afficher plus")
         function afficherFichiers(fichiers) {
             const grid = document.getElementById('drive-files-grid');
             grid.innerHTML = '';
@@ -332,7 +343,9 @@
                 return;
             }
 
-            fichiers.forEach((file, i) => {
+            const aAfficher = fichiers.slice(0, nombreDocumentsAffiches);
+
+            aAfficher.forEach((file, i) => {
                 const carteHTML = `
                     <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between hover:border-indigo-400 hover:shadow-sm transition opacity-0 translate-y-1" style="animation: fadeInUp 0.35s ease forwards; animation-delay: ${i * 40}ms;">
                         <div class="flex items-start gap-3 mb-3">
@@ -358,11 +371,25 @@
                 `;
                 grid.insertAdjacentHTML('beforeend', carteHTML);
             });
+
+            // Bouton "Afficher plus" si des documents restent cachés
+            if (fichiers.length > nombreDocumentsAffiches) {
+                const restants = fichiers.length - nombreDocumentsAffiches;
+                grid.insertAdjacentHTML('beforeend', `
+                    <button onclick="nombreDocumentsAffiches += 9; afficherFichiers(tousLesDocuments.filter(f => document.getElementById('doc-search-input').value.trim() === '' || f.name.toLowerCase().includes(document.getElementById('doc-search-input').value.trim().toLowerCase()) || f.category.toLowerCase().includes(document.getElementById('doc-search-input').value.trim().toLowerCase())));"
+                            class="col-span-full bg-white border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40 text-slate-600 hover:text-indigo-700 font-semibold text-xs py-3 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
+                        Afficher ${Math.min(restants, 9)} document(s) de plus (${restants} restant(s))
+                    </button>
+                `);
+            }
+
             lucide.createIcons();
         }
 
         // Filtre instantané lorsqu'on tape dans le champ
         function filtrerDocuments() {
+            nombreDocumentsAffiches = 6;
             const requete = document.getElementById('doc-search-input').value.trim().toLowerCase();
             const filtres = tousLesDocuments.filter(f => f.name.toLowerCase().includes(requete) || f.category.toLowerCase().includes(requete));
             afficherFichiers(filtres);
