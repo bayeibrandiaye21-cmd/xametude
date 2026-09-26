@@ -2,20 +2,19 @@
 // api/analyser-cours.js
 // Fonction serverless Vercel — "Professeur IA" de XamÉtudes
 //
-// Reçoit un PDF de cours (en base64) + matière/titre/userId,
-// l'envoie à Gemini pour analyse (Gemini lit le PDF directement,
-// pas besoin d'extraire le texte côté serveur), puis enregistre
-// le résumé généré dans la table Supabase "resumes_cours".
+// Reçoit un PDF de cours (base64) + un message optionnel de l'élève
+// + userId. Gemini lit le PDF, déduit lui-même un titre et une
+// matière, et produit un résumé structuré. Une nouvelle conversation
+// (type='cours') est créée dans resumes_cours, et le message de
+// l'élève + le résumé de l'IA sont enregistrés comme les deux
+// premiers messages de son fil de chat.
 //
-// Variables d'environnement Vercel nécessaires (déjà configurées
-// pour api/ask-ia.js) :
-//   GEMINI_API_KEY
-//   SUPABASE_URL
-//   SUPABASE_SERVICE_ROLE_KEY
+// Variables d'environnement Vercel nécessaires (déjà configurées) :
+//   GEMINI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
-// LIMITE IMPORTANTE : le plan Vercel Hobby limite le corps d'une
-// requête serverless à 4,5 Mo. Le PDF encodé en base64 grossit
-// d'environ 33 %, donc garde les PDF sous ~3 Mo côté élève.
+// LIMITE : le plan Vercel Hobby limite le corps d'une requête
+// serverless à 4,5 Mo. Le PDF encodé en base64 grossit d'environ
+// 33 %, donc garder les PDF sous ~3 Mo côté élève.
 // ============================================================
 
 const { createClient } = require('@supabase/supabase-js');
@@ -26,41 +25,32 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { pdfBase64, titre, matiere, userId } = req.body;
+    const { pdfBase64, message, userId } = req.body;
 
-    if (!pdfBase64 || !titre || !matiere || !userId) {
-      return res.status(400).json({
-        error: 'Champs manquants : pdfBase64, titre, matiere et userId sont requis'
-      });
+    if (!pdfBase64 || !userId) {
+      return res.status(400).json({ error: 'Champs manquants : pdfBase64 et userId sont requis' });
     }
 
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
     // --- 1. Appel à Gemini avec le PDF en pièce jointe (multimodal) ---
+    const consigneElleve = message && message.trim()
+      ? `L'élève a ajouté cette précision : "${message.trim()}". Si elle désigne une partie précise du document (ex: un chapitre, une leçon), concentre-toi uniquement dessus.`
+      : "L'élève n'a pas donné de précision : résume l'ensemble du document.";
+
     const prompt = `Tu es un professeur particulier pour un élève de Terminale S au Sénégal (programme sénégalais).
-Le PDF ci-joint (matière : ${matiere}) peut contenir un chapitre entier avec plusieurs leçons, ou un seul sujet précis.
+Analyse le PDF de cours ci-joint. ${consigneElleve}
 
-L'élève souhaite un résumé centré sur : "${titre}"
-
-Consignes :
-- Si le PDF contient plusieurs leçons ou parties, repère et utilise UNIQUEMENT la ou les sections qui correspondent à "${titre}". Ignore le reste du document.
-- Si "${titre}" ne correspond à aucune section identifiable du PDF, résume alors le document dans son ensemble et précise-le en une phrase au tout début de ta réponse.
-- Ne résume jamais un sujet plus large que ce qui a été demandé simplement parce qu'il est présent dans le même PDF.
-
-Produis un résumé structuré, clair et pédagogique, en français, avec exactement ces sections :
-
-## Plan du cours
-(les grandes parties du sujet demandé, en liste)
-
-## Points clés à retenir
-(définitions, dates, formules, théorèmes essentiels au sujet demandé, en liste)
-
-## Résumé
-(une synthèse de 10 à 15 lignes qui reformule l'essentiel du sujet demandé avec tes propres mots)
-
-Réponds uniquement avec ce résumé structuré (et l'éventuelle précision mentionnée ci-dessus), sans autre phrase d'introduction ni de conclusion.`;
+Réponds STRICTEMENT avec un objet JSON valide, sans aucun texte avant ou après, au format exact :
+{
+  "titre": "titre court du cours ou de la partie résumée (5 mots maximum)",
+  "matiere": "une seule matière parmi : Mathématiques, Physique-Chimie, SVT, Philosophie, Français, Anglais, Histoire-Géo, Autre",
+  "resume": "le résumé structuré, en français, en Markdown, avec exactement ces sections :\\n## Plan du cours\\n(les grandes parties, en liste)\\n\\n## Points clés à retenir\\n(définitions, dates, formules essentielles, en liste)\\n\\n## Résumé\\n(synthèse de 10 à 15 lignes)"
+}`;
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -73,15 +63,11 @@ Réponds uniquement avec ce résumé structuré (et l'éventuelle précision men
               role: 'user',
               parts: [
                 { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: 'application/pdf',
-                    data: pdfBase64
-                  }
-                }
+                { inline_data: { mime_type: 'application/pdf', data: pdfBase64 } }
               ]
             }
-          ]
+          ],
+          generationConfig: { responseMimeType: 'application/json' }
         })
       }
     );
@@ -93,32 +79,65 @@ Réponds uniquement avec ce résumé structuré (et l'éventuelle précision men
     }
 
     const geminiData = await geminiResponse.json();
-    const resumeTexte = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    let texteJson = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!resumeTexte) {
+    if (!texteJson) {
       return res.status(502).json({ error: "L'IA n'a renvoyé aucun résumé pour ce document." });
     }
 
-    // --- 2. Sauvegarde du résumé dans Supabase ---
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    texteJson = texteJson.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
 
-    const { data, error } = await supabase
+    let resultat;
+    try {
+      resultat = JSON.parse(texteJson);
+    } catch (parseErr) {
+      console.error('JSON invalide reçu de Gemini:', texteJson);
+      return res.status(502).json({ error: "L'IA a renvoyé un format inattendu. Réessaie." });
+    }
+
+    const { titre, matiere, resume } = resultat;
+    if (!titre || !resume) {
+      return res.status(502).json({ error: "Le résumé généré est incomplet. Réessaie." });
+    }
+
+    // --- 2. Crée la conversation (type='cours') ---
+    const { data: conversation, error: convError } = await supabase
       .from('resumes_cours')
       .insert({
         user_id: userId,
+        type: 'cours',
         titre: titre,
-        matiere: matiere,
-        resume_texte: resumeTexte
+        matiere: matiere || 'Autre',
+        resume_texte: resume
       })
       .select()
       .single();
 
-    if (error) {
-      console.error('Erreur Supabase:', error);
-      return res.status(500).json({ error: "Le résumé a été généré mais n'a pas pu être enregistré." });
+    if (convError || !conversation) {
+      console.error('Erreur création conversation:', convError);
+      return res.status(500).json({ error: "Le résumé a été généré mais la conversation n'a pas pu être créée." });
     }
 
-    return res.status(200).json({ resume: data });
+    // --- 3. Enregistre le message de l'élève et la réponse de l'IA dans le fil ---
+    const messageEleve = (message && message.trim()) || 'Peux-tu résumer ce cours ?';
+
+    const { error: msgError } = await supabase
+      .from('messages_prof_ia')
+      .insert([
+        { resume_id: conversation.id, user_id: userId, role: 'user', content: messageEleve },
+        { resume_id: conversation.id, user_id: userId, role: 'ia', content: resume }
+      ]);
+
+    if (msgError) {
+      console.error('Erreur enregistrement messages:', msgError);
+    }
+
+    return res.status(200).json({
+      conversationId: conversation.id,
+      titre: conversation.titre,
+      matiere: conversation.matiere,
+      resume_texte: resume
+    });
 
   } catch (err) {
     console.error('Erreur serveur analyser-cours:', err);

@@ -1,11 +1,14 @@
 // ============================================================
 // api/chat-cours.js
-// Fonction serverless Vercel — Chat avec le Professeur IA sur un cours précis
+// Fonction serverless Vercel — Chat avec le Professeur IA
 //
-// Reçoit resumeId + question + userId. Récupère le résumé du cours
-// (qui sert de contexte, pas besoin de renvoyer le PDF) ainsi que
-// l'historique de la conversation, interroge Gemini, sauvegarde la
-// question et la réponse, puis renvoie la réponse.
+// Reçoit conversationId (peut être null/absent pour démarrer une
+// nouvelle discussion libre) + question + userId.
+//
+// Si conversationId est fourni : récupère la conversation (avec ou
+// sans résumé de cours associé) et l'historique, pour garder le
+// contexte. Si conversationId est absent : crée une nouvelle
+// conversation de type 'discussion' (sans PDF ni résumé).
 //
 // Variables d'environnement Vercel nécessaires (déjà configurées) :
 //   GEMINI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -21,12 +24,10 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { resumeId, question, userId } = req.body;
+    const { conversationId, question, userId } = req.body;
 
-    if (!resumeId || !question || !userId) {
-      return res.status(400).json({
-        error: 'Champs manquants : resumeId, question et userId sont requis'
-      });
+    if (!question || !userId) {
+      return res.status(400).json({ error: 'Champs manquants : question et userId sont requis' });
     }
 
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -35,23 +36,41 @@ module.exports = async (req, res) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // --- 1. Récupère le résumé du cours (sert de contexte à l'IA) ---
-    const { data: resume, error: resumeError } = await supabase
-      .from('resumes_cours')
-      .select('*')
-      .eq('id', resumeId)
-      .eq('user_id', userId)
-      .single();
+    let conversation;
 
-    if (resumeError || !resume) {
-      return res.status(404).json({ error: 'Ce cours est introuvable.' });
+    // --- 1. Récupère la conversation existante, ou en crée une nouvelle (discussion libre) ---
+    if (conversationId) {
+      const { data, error } = await supabase
+        .from('resumes_cours')
+        .select('*')
+        .eq('id', conversationId)
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ error: 'Cette conversation est introuvable.' });
+      }
+      conversation = data;
+    } else {
+      const titreAuto = question.length > 50 ? question.slice(0, 50) + '…' : question;
+      const { data, error } = await supabase
+        .from('resumes_cours')
+        .insert({ user_id: userId, type: 'discussion', titre: titreAuto })
+        .select()
+        .single();
+
+      if (error || !data) {
+        console.error('Erreur création discussion:', error);
+        return res.status(500).json({ error: "Impossible de démarrer une nouvelle discussion." });
+      }
+      conversation = data;
     }
 
-    // --- 2. Récupère l'historique de la conversation sur ce cours ---
+    // --- 2. Récupère l'historique de la conversation ---
     const { data: historiqueComplet, error: histError } = await supabase
       .from('messages_prof_ia')
       .select('role, content')
-      .eq('resume_id', resumeId)
+      .eq('resume_id', conversation.id)
       .order('created_at', { ascending: true });
 
     if (histError) {
@@ -61,16 +80,19 @@ module.exports = async (req, res) => {
     const historique = (historiqueComplet || []).slice(-MAX_HISTORIQUE);
 
     // --- 3. Construit le contexte pour Gemini ---
-    const contexteSysteme = `Tu es un professeur particulier pour un élève de Terminale S au Sénégal (programme sénégalais).
-Voici le résumé du cours "${resume.titre}" (matière : ${resume.matiere}) sur lequel l'élève va te poser des questions :
+    const contexteSysteme = conversation.resume_texte
+      ? `Tu es un professeur particulier pour un élève de Terminale S au Sénégal (programme sénégalais).
+Voici le résumé du cours "${conversation.titre}" (matière : ${conversation.matiere}) sur lequel l'élève va te poser des questions :
 
-${resume.resume_texte}
+${conversation.resume_texte}
 
-Réponds aux questions de l'élève en t'appuyant sur ce cours, de façon claire, pédagogique et concise, en français. Si une question dépasse le cadre de ce cours précis, tu peux quand même l'aider mais précise-le.`;
+Réponds aux questions de l'élève en t'appuyant sur ce cours, de façon claire, pédagogique et concise, en français. Si une question dépasse le cadre de ce cours précis, tu peux quand même l'aider mais précise-le.`
+      : `Tu es un professeur particulier et un accompagnateur scolaire pour un élève de Terminale S au Sénégal (programme sénégalais).
+Cette conversation n'est liée à aucun cours précis : réponds à ses questions de façon claire, pédagogique et bienveillante, en français.`;
 
     const contents = [
       { role: 'user', parts: [{ text: contexteSysteme }] },
-      { role: 'model', parts: [{ text: "Compris, je suis prêt à répondre aux questions de l'élève sur ce cours." }] }
+      { role: 'model', parts: [{ text: "Compris, je suis prêt à répondre à l'élève." }] }
     ];
 
     historique.forEach(msg => {
@@ -105,19 +127,28 @@ Réponds aux questions de l'élève en t'appuyant sur ce cours, de façon claire
       return res.status(502).json({ error: "L'IA n'a renvoyé aucune réponse." });
     }
 
-    // --- 5. Sauvegarde la question et la réponse (best-effort) ---
+    // --- 5. Sauvegarde la question et la réponse, met à jour la date d'activité ---
     const { error: insertError } = await supabase
       .from('messages_prof_ia')
       .insert([
-        { resume_id: resumeId, user_id: userId, role: 'user', content: question },
-        { resume_id: resumeId, user_id: userId, role: 'ia', content: reponseTexte }
+        { resume_id: conversation.id, user_id: userId, role: 'user', content: question },
+        { resume_id: conversation.id, user_id: userId, role: 'ia', content: reponseTexte }
       ]);
 
     if (insertError) {
       console.error('Erreur sauvegarde messages:', insertError);
     }
 
-    return res.status(200).json({ reponse: reponseTexte });
+    await supabase
+      .from('resumes_cours')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversation.id);
+
+    return res.status(200).json({
+      conversationId: conversation.id,
+      titre: conversation.titre,
+      reponse: reponseTexte
+    });
 
   } catch (err) {
     console.error('Erreur serveur chat-cours:', err);

@@ -42,6 +42,10 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Ce cours est introuvable.' });
     }
 
+    if (!resume.resume_texte) {
+      return res.status(400).json({ error: "Cette conversation n'est pas liée à un cours, impossible de générer des flashcards." });
+    }
+
     // --- 2. Si des flashcards existent déjà et qu'on ne force pas la régénération, on les renvoie telles quelles ---
     if (!regenerer) {
       const { data: existantes } = await supabase
