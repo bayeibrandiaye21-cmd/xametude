@@ -188,6 +188,8 @@
         let exerciseOwnerId = null;
         let exerciseTitle = null;
         let exerciseData = null;
+        let votesCount = {};          // { answerId: nombre de votes }
+        let votesUtilisateur = new Set(); // Set des answerId pour lesquels l'utilisateur a déjà voté
 
         const subjectColors = {
             "Mathématiques": "bg-indigo-100 text-indigo-700",
@@ -356,10 +358,41 @@
 
             if (answers.length === 0) {
                 list.innerHTML = '<div class="text-center text-xs text-slate-400 py-6 bg-white rounded-2xl border border-slate-200">Aucune réponse pour le moment. Sois le premier à aider !</div>';
+                votesCount = {};
+                votesUtilisateur = new Set();
                 return;
             }
 
-            list.innerHTML = answers.map(a => `
+            // Récupère les votes de toutes les réponses de cet exercice en une seule requête
+            const answerIds = answers.map(a => a.id);
+            const { data: votes, error: votesError } = await window.supabaseClient
+                .from('answer_votes')
+                .select('answer_id, user_id')
+                .in('answer_id', answerIds);
+
+            if (votesError) console.error('Erreur chargement votes:', votesError);
+
+            votesCount = {};
+            votesUtilisateur = new Set();
+            (votes || []).forEach(v => {
+                votesCount[v.answer_id] = (votesCount[v.answer_id] || 0) + 1;
+                if (currentUser && v.user_id === currentUser.id) votesUtilisateur.add(v.answer_id);
+            });
+
+            list.innerHTML = answers.map(a => {
+                const count = votesCount[a.id] || 0;
+                const aVote = votesUtilisateur.has(a.id);
+                const estAuteurReponse = currentUser && a.user_id === currentUser.id;
+
+                const voteHTML = estAuteurReponse
+                    ? `<span class="flex items-center gap-1 text-xs font-semibold text-slate-400 px-2 py-1" title="Tu ne peux pas voter pour ta propre réponse">
+                           <i data-lucide="thumbs-up" class="h-3.5 w-3.5"></i> ${count}
+                       </span>`
+                    : `<button onclick="toggleVote('${a.id}')" class="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border transition ${aVote ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'text-slate-400 border-transparent hover:text-indigo-600 hover:bg-slate-50'}">
+                           <i data-lucide="thumbs-up" class="h-3.5 w-3.5"></i> ${count}
+                       </button>`;
+
+                return `
                 <div class="bg-white rounded-2xl p-6 border ${a.is_validated ? 'border-emerald-200' : 'border-slate-200'} shadow-sm space-y-3 relative" data-answer-id="${a.id}">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
@@ -370,6 +403,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
+                            ${voteHTML}
                             ${a.is_validated ? `
                             <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
                                 <i data-lucide="check-circle" class="h-3.5 w-3.5 text-emerald-600"></i> Solution validée
@@ -397,9 +431,36 @@
                         </button>
                     </div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             lucide.createIcons();
+        }
+
+        // Bascule le vote de l'utilisateur sur une réponse (vote / retire son vote)
+        async function toggleVote(answerId) {
+            if (!currentUser) return;
+            const dejaVote = votesUtilisateur.has(answerId);
+
+            try {
+                if (dejaVote) {
+                    const { error } = await window.supabaseClient
+                        .from('answer_votes')
+                        .delete()
+                        .eq('answer_id', answerId)
+                        .eq('user_id', currentUser.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await window.supabaseClient
+                        .from('answer_votes')
+                        .insert({ answer_id: answerId, user_id: currentUser.id });
+                    if (error) throw error;
+                }
+                await chargerReponses();
+            } catch (err) {
+                console.error(err);
+                afficherToast(traduireErreur(err), 'error');
+            }
         }
 
         // ============================================
