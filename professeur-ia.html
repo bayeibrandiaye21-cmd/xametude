@@ -11,7 +11,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+<body class="overflow-x-hidden bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
 
     <!-- NAVBAR TOP -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
@@ -33,7 +33,7 @@
                 <i data-lucide="graduation-cap" class="h-7 w-7"></i>
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold">Ton Professeur IA</h1>
-            <p class="text-indigo-200 text-xs sm:text-sm">Dépose le PDF d'un cours, l'IA t'en fait un résumé structuré et te le lit à voix haute.</p>
+            <p class="text-indigo-200 text-xs sm:text-sm">Dépose le PDF d'un cours, reçois un résumé structuré, et pose-lui toutes tes questions dessus.</p>
         </div>
     </section>
 
@@ -107,8 +107,8 @@
 
             <!-- RÉSULTAT DU RÉSUMÉ -->
             <div id="result-state" class="hidden border-t border-slate-100 pt-6 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <h3 id="result-title" class="text-sm font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-600"></i> Résumé généré
                     </h3>
                     <button type="button" id="lire-audio-btn" class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition">
@@ -116,6 +116,28 @@
                     </button>
                 </div>
                 <div id="resume-content" class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-xl p-4"></div>
+
+                <!-- CHAT AVEC LE PROFESSEUR IA SUR CE COURS -->
+                <div class="border-t border-slate-100 pt-5 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <i data-lucide="message-circle-question" class="h-4 w-4 text-indigo-600"></i> Pose une question sur ce cours
+                    </h4>
+
+                    <div id="chat-messages" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
+
+                    <div id="chat-loading" class="hidden flex items-center gap-2 text-xs font-semibold text-slate-400">
+                        <div class="h-3.5 w-3.5 border-2 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
+                        Le professeur IA réfléchit...
+                    </div>
+
+                    <form id="chat-form" class="flex items-center gap-2">
+                        <input type="text" id="chat-input" placeholder="Ex: Peux-tu me redonner un exemple ?"
+                               class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                        <button type="submit" id="chat-send-btn" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none disabled:opacity-50">
+                            <i data-lucide="send" class="h-4 w-4"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
         </section>
 
@@ -136,8 +158,6 @@
 
         // ------------------------------------------------------------
         // Configuration Supabase
-        // Remplace SUPABASE_ANON_KEY par la clé anonyme déjà utilisée
-        // dans tes autres pages (celle-ci n'est jamais secrète côté client).
         // ------------------------------------------------------------
         const SUPABASE_URL = 'https://qlkheoquvvaktgggsrbq.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsa2hlb3F1dnZha3RnZ2dzcmJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTAwMDQsImV4cCI6MjEwNDYyNjAwNH0.S6nvCcGS4KriIpnrsy5Cj4bb4vCMG7UpRfW_B3ZyYqY';
@@ -155,11 +175,20 @@
         const loadingState = document.getElementById('loading-state');
         const errorState = document.getElementById('error-state');
         const resultState = document.getElementById('result-state');
+        const resultTitle = document.getElementById('result-title');
         const resumeContent = document.getElementById('resume-content');
         const lireAudioBtn = document.getElementById('lire-audio-btn');
         const historiqueContainer = document.getElementById('historique-container');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatLoading = document.getElementById('chat-loading');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatSendBtn = document.getElementById('chat-send-btn');
 
         const TAILLE_MAX_OCTETS = 3 * 1024 * 1024; // 3 Mo
+
+        let historiqueResumes = []; // cache local de l'historique
+        let currentResumeId = null; // id du résumé actuellement affiché (sert au chat)
 
         // Affiche le nom du fichier sélectionné
         pdfInput.addEventListener('change', () => {
@@ -195,7 +224,9 @@
             resultState.classList.add('hidden');
         }
 
-        // Soumission du formulaire
+        // ------------------------------------------------------------
+        // Soumission du formulaire d'analyse
+        // ------------------------------------------------------------
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             masquerEtats();
@@ -224,12 +255,7 @@
                 const response = await fetch('/api/analyser-cours', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        pdfBase64,
-                        titre,
-                        matiere,
-                        userId: user.id
-                    })
+                    body: JSON.stringify({ pdfBase64, titre, matiere, userId: user.id })
                 });
 
                 const payload = await response.json();
@@ -238,7 +264,7 @@
                     throw new Error(payload.error || 'Une erreur est survenue.');
                 }
 
-                afficherResume(payload.resume.resume_texte);
+                afficherResume(payload.resume.id, payload.resume.titre, payload.resume.resume_texte);
                 chargerHistorique();
                 form.reset();
                 uploadPrompt.classList.remove('hidden');
@@ -253,9 +279,15 @@
             }
         });
 
-        function afficherResume(texte) {
+        // Affiche un résumé (nouveau ou depuis l'historique) et prépare le chat associé
+        function afficherResume(resumeId, titre, texte) {
+            currentResumeId = resumeId;
+            resultTitle.innerHTML = `<i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-600"></i> ${titre}`;
             resumeContent.textContent = texte;
             resultState.classList.remove('hidden');
+            chatMessages.innerHTML = '';
+            chatInput.value = '';
+            chargerMessagesChat(resumeId);
             lucide.createIcons();
         }
 
@@ -272,7 +304,93 @@
             window.speechSynthesis.speak(utterance);
         });
 
-        // Charge l'historique des résumés de l'utilisateur connecté
+        // ------------------------------------------------------------
+        // CHAT AVEC LE PROFESSEUR IA SUR LE COURS AFFICHÉ
+        // ------------------------------------------------------------
+        function ajouterBulleChat(role, contenu) {
+            const estIA = role === 'ia';
+            const bulle = document.createElement('div');
+            bulle.className = estIA ? 'flex gap-2' : 'flex gap-2 flex-row-reverse';
+            bulle.innerHTML = `
+                <div class="h-7 w-7 rounded-full flex-none flex items-center justify-center text-xs font-bold ${estIA ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' : 'bg-indigo-600 text-white'}">
+                    ${estIA ? '🤖' : 'Toi'}
+                </div>
+                <div class="text-xs leading-relaxed p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap ${estIA ? 'bg-amber-50 border border-amber-200 text-slate-700 rounded-tl-none' : 'bg-indigo-600 text-white rounded-tr-none'}">
+                    ${contenu.replace(/</g, '&lt;')}
+                </div>
+            `;
+            chatMessages.appendChild(bulle);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Charge les échanges déjà enregistrés pour ce résumé
+        async function chargerMessagesChat(resumeId) {
+            const { data, error } = await supabaseClient
+                .from('messages_prof_ia')
+                .select('*')
+                .eq('resume_id', resumeId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Erreur chargement chat:', error);
+                return;
+            }
+
+            chatMessages.innerHTML = '';
+            if (!data || data.length === 0) {
+                chatMessages.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Aucune question posée pour l\'instant sur ce cours.</p>';
+                return;
+            }
+            data.forEach(m => ajouterBulleChat(m.role, m.content));
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const question = chatInput.value.trim();
+            if (!question || !currentResumeId) return;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                afficherErreur('Tu dois être connecté pour discuter avec le Professeur IA.');
+                return;
+            }
+
+            const placeholderVide = chatMessages.querySelector('p');
+            if (placeholderVide) placeholderVide.remove();
+
+            ajouterBulleChat('user', question);
+            chatInput.value = '';
+            chatSendBtn.disabled = true;
+            chatLoading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/chat-cours', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resumeId: currentResumeId, question, userId: user.id })
+                });
+
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Une erreur est survenue.');
+                }
+
+                ajouterBulleChat('ia', payload.reponse);
+
+            } catch (err) {
+                console.error(err);
+                ajouterBulleChat('ia', "Désolé, je n'ai pas pu répondre. Réessaie dans un instant.");
+            } finally {
+                chatSendBtn.disabled = false;
+                chatLoading.classList.add('hidden');
+            }
+        });
+
+        // ------------------------------------------------------------
+        // HISTORIQUE DES RÉSUMÉS
+        // ------------------------------------------------------------
         async function chargerHistorique() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
@@ -291,14 +409,15 @@
                 return;
             }
 
-            if (!data || data.length === 0) {
+            historiqueResumes = data || [];
+
+            if (historiqueResumes.length === 0) {
                 historiqueContainer.innerHTML = '<p class="text-xs text-slate-400">Aucun cours résumé pour le moment.</p>';
                 return;
             }
 
-            historiqueContainer.innerHTML = data.map(r => `
-                <button onclick='ouvrirResumeHistorique(${JSON.stringify(r.resume_texte).replace(/'/g, "&#39;")})'
-                        class="w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition flex items-center justify-between gap-3">
+            historiqueContainer.innerHTML = historiqueResumes.map((r, i) => `
+                <button data-index="${i}" class="historique-item w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition flex items-center justify-between gap-3">
                     <div class="overflow-hidden">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">${r.matiere}</span>
@@ -309,12 +428,16 @@
                     <i data-lucide="chevron-right" class="h-4 w-4 text-slate-300 flex-none"></i>
                 </button>
             `).join('');
-            lucide.createIcons();
-        }
 
-        function ouvrirResumeHistorique(texte) {
-            afficherResume(texte);
-            resultState.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            historiqueContainer.querySelectorAll('.historique-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const r = historiqueResumes[Number(btn.dataset.index)];
+                    afficherResume(r.id, r.titre, r.resume_texte);
+                    resultState.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+
+            lucide.createIcons();
         }
 
         // Initialisation
