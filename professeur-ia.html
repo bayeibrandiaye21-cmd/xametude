@@ -2,191 +2,132 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <title>XamÉtudes - Professeur IA</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="overflow-x-hidden bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+<body class="bg-slate-100 font-sans text-slate-800 h-dvh flex flex-col overflow-hidden">
 
-    <!-- NAVBAR TOP -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="xam.html" class="flex items-center gap-2 hover:opacity-90 transition">
-                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">XÉ</div>
-                <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">XamÉtudes</span>
-            </a>
-            <a href="xam.html" class="text-xs font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-1.5">
-                <i data-lucide="arrow-left" class="h-4 w-4"></i> Retour au tableau de bord
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-200 h-14 flex-none z-30">
+        <div class="h-full flex items-center justify-between px-3 gap-2">
+            <button id="toggle-sidebar-btn" class="p-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-none">
+                <i data-lucide="menu" class="h-5 w-5"></i>
+            </button>
+            <div class="flex-1 flex items-center justify-center gap-2 overflow-hidden">
+                <i data-lucide="graduation-cap" class="h-4 w-4 text-indigo-600 flex-none"></i>
+                <h1 id="conversation-title" class="text-sm font-bold text-slate-800 truncate">Professeur IA</h1>
+            </div>
+            <button id="toggle-outils-btn" class="hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg flex-none">
+                <i data-lucide="sliders-horizontal" class="h-5 w-5"></i>
+            </button>
+            <a href="xam.html" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg flex-none" title="Retour au tableau de bord">
+                <i data-lucide="home" class="h-5 w-5"></i>
             </a>
         </div>
     </header>
 
-    <!-- HERO -->
-    <section class="bg-gradient-to-b from-indigo-900 to-indigo-800 text-white py-10 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-3xl mx-auto text-center space-y-2">
-            <div class="inline-flex p-3 bg-white/10 rounded-2xl mb-1">
-                <i data-lucide="graduation-cap" class="h-7 w-7"></i>
-            </div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold">Ton Professeur IA</h1>
-            <p class="text-indigo-200 text-xs sm:text-sm">Dépose le PDF d'un cours, reçois un résumé structuré, et pose-lui toutes tes questions dessus.</p>
-        </div>
-    </section>
+    <div class="flex-1 flex overflow-hidden relative">
 
-    <!-- CONTENU PRINCIPAL -->
-    <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-8 space-y-8">
+        <!-- BACKDROP MOBILE -->
+        <div id="backdrop" class="hidden fixed inset-0 bg-slate-900/40 z-20 md:hidden"></div>
 
-        <!-- FORMULAIRE D'ANALYSE -->
-        <section class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-            <form id="analyse-form" class="space-y-5">
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label for="matiere" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Matière <span class="text-red-500">*</span>
-                        </label>
-                        <select id="matiere" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
-                            <option value="" disabled selected>Sélectionner une matière</option>
-                            <option value="Mathématiques">Mathématiques</option>
-                            <option value="Physique-Chimie">Physique - Chimie</option>
-                            <option value="SVT">SVT</option>
-                            <option value="Philosophie">Philosophie</option>
-                            <option value="Français">Français</option>
-                            <option value="Anglais">Anglais</option>
-                            <option value="Histoire-Géo">Histoire - Géographie</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="titre" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Titre du cours <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" id="titre" required placeholder="Ex: Les limites de fonctions"
-                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                        PDF du cours <span class="text-red-500">*</span>
-                    </label>
-                    <div id="drop-zone" class="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-50 hover:bg-indigo-50/30 transition relative">
-                        <input type="file" id="pdf-input" accept="application/pdf" required class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-                        <div id="upload-prompt" class="flex flex-col items-center gap-2">
-                            <div class="p-3 bg-indigo-100 text-indigo-600 rounded-full">
-                                <i data-lucide="file-up" class="h-6 w-6"></i>
-                            </div>
-                            <p class="text-sm font-semibold text-slate-700">Clique pour choisir le PDF de ton cours</p>
-                            <p class="text-xs text-slate-400">PDF jusqu'à 3 Mo</p>
-                        </div>
-                        <div id="file-selected" class="hidden flex items-center justify-center gap-2 text-sm font-semibold text-indigo-700">
-                            <i data-lucide="file-check-2" class="h-5 w-5"></i>
-                            <span id="file-name"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" id="submit-btn"
-                        class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
-                    <i data-lucide="sparkles" class="h-4 w-4"></i>
-                    <span>Analyser ce cours</span>
+        <!-- SIDEBAR GAUCHE : HISTORIQUE DES CONVERSATIONS -->
+        <aside id="sidebar" class="absolute md:relative z-30 w-72 h-full bg-white border-r border-slate-200 flex flex-col -translate-x-full md:translate-x-0 transition-transform duration-200">
+            <div class="p-3 border-b border-slate-100">
+                <button id="nouvelle-conv-btn" class="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition">
+                    <i data-lucide="plus" class="h-4 w-4"></i> Nouvelle conversation
                 </button>
-            </form>
+            </div>
+            <nav id="conversations-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <p class="text-xs text-slate-400 text-center py-6 px-2">Chargement...</p>
+            </nav>
+        </aside>
 
-            <!-- ÉTAT DE CHARGEMENT -->
-            <div id="loading-state" class="hidden flex flex-col items-center gap-3 py-6 text-center">
-                <div class="h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <p class="text-xs font-semibold text-slate-500">Ton professeur IA lit le cours, patiente quelques secondes...</p>
+        <!-- CENTRE : FIL DE CONVERSATION -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+            <div id="chat-thread" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+            <!-- COMPOSITEUR -->
+            <div class="p-3 bg-white border-t border-slate-200 flex-none">
+                <div id="pdf-attache-preview" class="hidden max-w-3xl mx-auto mb-2 flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <i data-lucide="file-text" class="h-3.5 w-3.5 flex-none"></i>
+                    <span id="pdf-attache-nom" class="truncate flex-1"></span>
+                    <button type="button" id="pdf-attache-remove-btn" class="text-indigo-400 hover:text-red-500 font-bold flex-none">
+                        <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                    </button>
+                </div>
+                <div id="error-banner" class="hidden max-w-3xl mx-auto mb-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl"></div>
+                <form id="composer-form" class="flex items-center gap-2 max-w-3xl mx-auto">
+                    <input type="file" id="pdf-input" accept="application/pdf" class="hidden">
+                    <button type="button" id="attach-btn" title="Joindre le PDF d'un cours" class="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex-none">
+                        <i data-lucide="paperclip" class="h-4 w-4"></i>
+                    </button>
+                    <input type="text" id="message-input" placeholder="Pose une question ou joins un PDF à résumer..."
+                           class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                    <button type="submit" id="send-btn" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none disabled:opacity-50">
+                        <i data-lucide="send" class="h-4 w-4"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <!-- PANNEAU DROIT : OUTILS DU COURS -->
+        <aside id="outils-panel" class="hidden absolute md:relative right-0 z-30 w-72 h-full bg-white border-l border-slate-200 flex-col">
+            <div class="p-3 border-b border-slate-100 flex items-center justify-between flex-none">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">Outils du cours</h2>
+                <button id="close-outils-btn" class="p-1 text-slate-400 hover:text-slate-700 md:hidden">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
             </div>
 
-            <!-- MESSAGE D'ERREUR -->
-            <div id="error-state" class="hidden p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl"></div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
 
-            <!-- RÉSULTAT DU RÉSUMÉ -->
-            <div id="result-state" class="hidden border-t border-slate-100 pt-6 space-y-4">
-                <div class="flex items-center justify-between flex-wrap gap-2">
-                    <h3 id="result-title" class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-600"></i> Résumé généré
-                    </h3>
-                    <button type="button" id="lire-audio-btn" class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition">
+                <!-- AUDIO -->
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Écoute</h3>
+                    <button type="button" id="lire-audio-btn" class="w-full flex items-center justify-center gap-1.5 py-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 text-xs font-bold text-indigo-600 rounded-xl transition">
                         <i data-lucide="volume-2" class="h-4 w-4"></i> Écouter le résumé
                     </button>
                 </div>
-                <div id="resume-content" class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 border border-slate-200 rounded-xl p-4"></div>
 
-                <!-- FLASHCARDS DE RÉVISION -->
-                <div class="border-t border-slate-100 pt-5 space-y-3">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                        <i data-lucide="layers" class="h-4 w-4 text-indigo-600"></i> Flashcards de révision
-                    </h4>
+                <!-- FLASHCARDS -->
+                <div class="space-y-3 border-t border-slate-100 pt-5">
+                    <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Flashcards de révision</h3>
 
                     <div id="flashcards-controls"></div>
 
                     <div id="flashcards-loading" class="hidden flex items-center gap-2 text-xs font-semibold text-slate-400 py-2">
                         <div class="h-3.5 w-3.5 border-2 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
-                        Génération des flashcards...
+                        Génération...
                     </div>
 
-                    <!-- Session de révision (une carte à la fois) -->
                     <div id="flashcard-session" class="hidden space-y-3">
                         <div id="flashcard-progress" class="text-[11px] font-semibold text-slate-400"></div>
 
-                        <div id="flashcard-box" class="bg-slate-50 border border-slate-200 rounded-2xl p-6 min-h-[120px] flex items-center justify-center text-center cursor-pointer select-none">
-                            <p id="flashcard-face" class="text-sm font-semibold text-slate-800"></p>
+                        <div id="flashcard-box" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 min-h-[100px] flex items-center justify-center text-center cursor-pointer select-none">
+                            <p id="flashcard-face" class="text-xs font-semibold text-slate-800"></p>
                         </div>
-                        <p id="flashcard-hint" class="text-center text-[11px] text-slate-400">Clique sur la carte pour voir la réponse</p>
+                        <p id="flashcard-hint" class="text-center text-[10px] text-slate-400">Clique sur la carte pour voir la réponse</p>
 
-                        <div id="flashcard-actions" class="hidden grid grid-cols-2 gap-3">
-                            <button type="button" id="flashcard-revoir-btn" class="py-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold rounded-xl hover:bg-amber-100 transition">À revoir</button>
-                            <button type="button" id="flashcard-maitrise-btn" class="py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition">Je maîtrise</button>
+                        <div id="flashcard-actions" class="hidden grid grid-cols-2 gap-2">
+                            <button type="button" id="flashcard-revoir-btn" class="py-2 bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold rounded-lg hover:bg-amber-100 transition">À revoir</button>
+                            <button type="button" id="flashcard-maitrise-btn" class="py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold rounded-lg hover:bg-emerald-100 transition">Je maîtrise</button>
                         </div>
 
-                        <div id="flashcard-fin" class="hidden text-center space-y-2 py-4">
-                            <i data-lucide="party-popper" class="h-6 w-6 text-indigo-500 mx-auto"></i>
-                            <p id="flashcard-fin-texte" class="text-sm font-bold text-slate-800"></p>
-                            <button type="button" id="flashcard-recommencer-btn" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition">Recommencer la session</button>
+                        <div id="flashcard-fin" class="hidden text-center space-y-2 py-3">
+                            <i data-lucide="party-popper" class="h-5 w-5 text-indigo-500 mx-auto"></i>
+                            <p id="flashcard-fin-texte" class="text-xs font-bold text-slate-800"></p>
+                            <button type="button" id="flashcard-recommencer-btn" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition">Recommencer</button>
                         </div>
                     </div>
                 </div>
-
-                <!-- CHAT AVEC LE PROFESSEUR IA SUR CE COURS -->
-                <div class="border-t border-slate-100 pt-5 space-y-3">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                        <i data-lucide="message-circle-question" class="h-4 w-4 text-indigo-600"></i> Pose une question sur ce cours
-                    </h4>
-
-                    <div id="chat-messages" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
-
-                    <div id="chat-loading" class="hidden flex items-center gap-2 text-xs font-semibold text-slate-400">
-                        <div class="h-3.5 w-3.5 border-2 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
-                        Le professeur IA réfléchit...
-                    </div>
-
-                    <form id="chat-form" class="flex items-center gap-2">
-                        <input type="text" id="chat-input" placeholder="Ex: Peux-tu me redonner un exemple ?"
-                               class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
-                        <button type="submit" id="chat-send-btn" class="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-200 transition flex-none disabled:opacity-50">
-                            <i data-lucide="send" class="h-4 w-4"></i>
-                        </button>
-                    </form>
-                </div>
             </div>
-        </section>
+        </aside>
 
-        <!-- HISTORIQUE DES RÉSUMÉS -->
-        <section class="space-y-4">
-            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <i data-lucide="history" class="h-4 w-4 text-indigo-600"></i> Mes cours résumés
-            </h2>
-            <div id="historique-container" class="space-y-3">
-                <p class="text-xs text-slate-400">Chargement...</p>
-            </div>
-        </section>
-
-    </main>
+    </div>
 
     <script>
         lucide.createIcons();
@@ -201,24 +142,28 @@
         // ------------------------------------------------------------
         // Références DOM
         // ------------------------------------------------------------
-        const form = document.getElementById('analyse-form');
+        const sidebar = document.getElementById('sidebar');
+        const outilsPanel = document.getElementById('outils-panel');
+        const backdrop = document.getElementById('backdrop');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        const toggleOutilsBtn = document.getElementById('toggle-outils-btn');
+        const closeOutilsBtn = document.getElementById('close-outils-btn');
+        const conversationTitleEl = document.getElementById('conversation-title');
+        const conversationsListEl = document.getElementById('conversations-list');
+        const nouvelleConvBtn = document.getElementById('nouvelle-conv-btn');
+
+        const chatThread = document.getElementById('chat-thread');
+        const composerForm = document.getElementById('composer-form');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const attachBtn = document.getElementById('attach-btn');
         const pdfInput = document.getElementById('pdf-input');
-        const uploadPrompt = document.getElementById('upload-prompt');
-        const fileSelected = document.getElementById('file-selected');
-        const fileNameEl = document.getElementById('file-name');
-        const submitBtn = document.getElementById('submit-btn');
-        const loadingState = document.getElementById('loading-state');
-        const errorState = document.getElementById('error-state');
-        const resultState = document.getElementById('result-state');
-        const resultTitle = document.getElementById('result-title');
-        const resumeContent = document.getElementById('resume-content');
+        const pdfAttachePreview = document.getElementById('pdf-attache-preview');
+        const pdfAttacheNom = document.getElementById('pdf-attache-nom');
+        const pdfAttacheRemoveBtn = document.getElementById('pdf-attache-remove-btn');
+        const errorBanner = document.getElementById('error-banner');
+
         const lireAudioBtn = document.getElementById('lire-audio-btn');
-        const historiqueContainer = document.getElementById('historique-container');
-        const chatMessages = document.getElementById('chat-messages');
-        const chatLoading = document.getElementById('chat-loading');
-        const chatForm = document.getElementById('chat-form');
-        const chatInput = document.getElementById('chat-input');
-        const chatSendBtn = document.getElementById('chat-send-btn');
 
         const flashcardsControls = document.getElementById('flashcards-controls');
         const flashcardsLoading = document.getElementById('flashcards-loading');
@@ -236,29 +181,59 @@
 
         const TAILLE_MAX_OCTETS = 3 * 1024 * 1024; // 3 Mo
 
-        let historiqueResumes = []; // cache local de l'historique
-        let currentResumeId = null; // id du résumé actuellement affiché (sert au chat et aux flashcards)
+        // ------------------------------------------------------------
+        // État global
+        // ------------------------------------------------------------
+        let conversationsCache = [];
+        let currentResumeId = null;    // null = nouvelle conversation pas encore créée
+        let currentResumeTexte = null; // texte du résumé (sert à l'audio), null si discussion libre
 
         let currentFlashcards = [];
         let sessionIndex = 0;
         let sessionMaitrisees = 0;
         let carteRetournee = false;
 
-        // Affiche le nom du fichier sélectionné
-        pdfInput.addEventListener('change', () => {
-            const file = pdfInput.files[0];
-            if (!file) return;
-            if (file.size > TAILLE_MAX_OCTETS) {
-                afficherErreur('Ce PDF dépasse 3 Mo. Essaie de le compresser ou de le scanner en plus basse qualité.');
-                pdfInput.value = '';
-                return;
+        // ------------------------------------------------------------
+        // OUVERTURE / FERMETURE DES PANNEAUX (mobile)
+        // ------------------------------------------------------------
+        function ouvrirSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            if (window.innerWidth < 768) backdrop.classList.remove('hidden');
+        }
+        function fermerSidebar() {
+            if (window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
+            majBackdrop();
+        }
+        function ouvrirOutils() {
+            outilsPanel.classList.remove('hidden');
+            outilsPanel.classList.add('flex');
+            if (window.innerWidth < 768) backdrop.classList.remove('hidden');
+        }
+        function fermerOutils() {
+            if (window.innerWidth < 768) {
+                outilsPanel.classList.add('hidden');
+                outilsPanel.classList.remove('flex');
             }
-            fileNameEl.textContent = file.name;
-            uploadPrompt.classList.add('hidden');
-            fileSelected.classList.remove('hidden');
-        });
+            majBackdrop();
+        }
+        function majBackdrop() {
+            const sidebarOuverte = window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full');
+            const outilsOuvert = window.innerWidth < 768 && !outilsPanel.classList.contains('hidden');
+            backdrop.classList.toggle('hidden', !(sidebarOuverte || outilsOuvert));
+        }
 
-        // Convertit un fichier en base64 (sans le préfixe data:...;base64,)
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.contains('-translate-x-full') ? ouvrirSidebar() : fermerSidebar();
+        });
+        toggleOutilsBtn.addEventListener('click', () => {
+            outilsPanel.classList.contains('hidden') ? ouvrirOutils() : fermerOutils();
+        });
+        closeOutilsBtn.addEventListener('click', fermerOutils);
+        backdrop.addEventListener('click', () => { fermerSidebar(); fermerOutils(); });
+
+        // ------------------------------------------------------------
+        // UTILITAIRES
+        // ------------------------------------------------------------
         function fichierEnBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -268,99 +243,275 @@
             });
         }
 
-        function afficherErreur(message) {
-            errorState.textContent = message;
-            errorState.classList.remove('hidden');
+        function afficherErreurGlobale(msg) {
+            errorBanner.textContent = msg;
+            errorBanner.classList.remove('hidden');
+            setTimeout(() => errorBanner.classList.add('hidden'), 5000);
         }
 
-        function masquerEtats() {
-            errorState.classList.add('hidden');
-            resultState.classList.add('hidden');
-        }
-
-        // ------------------------------------------------------------
-        // Soumission du formulaire d'analyse
-        // ------------------------------------------------------------
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            masquerEtats();
-
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                afficherErreur('Tu dois être connecté pour utiliser le Professeur IA.');
-                return;
-            }
-
-            const file = pdfInput.files[0];
-            if (!file) {
-                afficherErreur('Choisis un PDF avant de lancer l\'analyse.');
-                return;
-            }
-
-            const titre = document.getElementById('titre').value.trim();
-            const matiere = document.getElementById('matiere').value;
-
-            submitBtn.disabled = true;
-            loadingState.classList.remove('hidden');
-
-            try {
-                const pdfBase64 = await fichierEnBase64(file);
-
-                const response = await fetch('/api/analyser-cours', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pdfBase64, titre, matiere, userId: user.id })
-                });
-
-                const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Une erreur est survenue.');
-                }
-
-                afficherResume(payload.resume.id, payload.resume.titre, payload.resume.resume_texte);
-                chargerHistorique();
-                form.reset();
-                uploadPrompt.classList.remove('hidden');
-                fileSelected.classList.add('hidden');
-
-            } catch (err) {
-                console.error(err);
-                afficherErreur(err.message || "Impossible d'analyser ce cours pour le moment.");
-            } finally {
-                submitBtn.disabled = false;
-                loadingState.classList.add('hidden');
-            }
-        });
-
-        // Affiche un résumé (nouveau ou depuis l'historique) et prépare le chat + les flashcards associés
-        function afficherResume(resumeId, titre, texte) {
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-            currentResumeId = resumeId;
-            resultTitle.innerHTML = `<i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-600"></i> ${titre}`;
-            resumeContent.textContent = texte;
-            resultState.classList.remove('hidden');
-            chatMessages.innerHTML = '';
-            chatInput.value = '';
-            chargerMessagesChat(resumeId);
-            chargerFlashcardsExistantes(resumeId);
+        function afficherEtatVide() {
+            chatThread.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center text-center gap-3 px-6">
+                    <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
+                        <i data-lucide="graduation-cap" class="h-8 w-8"></i>
+                    </div>
+                    <h2 class="text-base font-bold text-slate-800">Salut, je suis ton Professeur IA</h2>
+                    <p class="text-xs text-slate-500 max-w-xs">Joins le PDF d'un cours pour que je te le résume (avec titre et matière détectés automatiquement), ou pose-moi directement une question.</p>
+                </div>
+            `;
             lucide.createIcons();
         }
 
-        // Lecture audio du résumé via l'API navigateur — bouton play/stop
-        lireAudioBtn.addEventListener('click', () => {
-            if (!('speechSynthesis' in window)) {
-                afficherErreur("La lecture audio n'est pas supportée par ce navigateur.");
+        function ajouterBulleChat(role, contenu) {
+            const estIA = role === 'ia';
+            const bulle = document.createElement('div');
+            bulle.className = estIA ? 'flex gap-2 max-w-xl' : 'flex gap-2 max-w-xl ml-auto flex-row-reverse';
+            bulle.innerHTML = `
+                <div class="h-7 w-7 rounded-full flex-none flex items-center justify-center text-xs font-bold ${estIA ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' : 'bg-indigo-600 text-white'}">
+                    ${estIA ? '🤖' : 'Toi'}
+                </div>
+                <div class="text-xs leading-relaxed p-3 rounded-2xl whitespace-pre-wrap ${estIA ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm' : 'bg-indigo-600 text-white rounded-tr-none'}">
+                    ${contenu.replace(/</g, '&lt;')}
+                </div>
+            `;
+            chatThread.appendChild(bulle);
+            chatThread.scrollTop = chatThread.scrollHeight;
+            return bulle;
+        }
+
+        function ajouterBulleChargement() {
+            const bulle = document.createElement('div');
+            bulle.className = 'flex gap-2 max-w-xl';
+            bulle.innerHTML = `
+                <div class="h-7 w-7 rounded-full flex-none flex items-center justify-center text-xs font-bold bg-gradient-to-br from-amber-400 to-orange-500 text-white">🤖</div>
+                <div class="text-xs p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 rounded-tl-none shadow-sm flex items-center gap-2">
+                    <div class="h-3 w-3 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin"></div> Le professeur IA réfléchit...
+                </div>
+            `;
+            chatThread.appendChild(bulle);
+            chatThread.scrollTop = chatThread.scrollHeight;
+            return bulle;
+        }
+
+        // ------------------------------------------------------------
+        // SIDEBAR : LISTE DES CONVERSATIONS
+        // ------------------------------------------------------------
+        async function chargerConversations() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabaseClient
+                .from('resumes_cours')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('updated_at', { ascending: false });
+
+            if (error) { console.error(error); return; }
+            conversationsCache = data || [];
+            renderConversationsList();
+        }
+
+        function renderConversationsList() {
+            if (conversationsCache.length === 0) {
+                conversationsListEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 px-2">Aucune conversation pour le moment.</p>';
                 return;
             }
 
-            // Si une lecture est en cours, on l'arrête (le bouton se remet à jour via onend/onerror)
+            conversationsListEl.innerHTML = conversationsCache.map((c, i) => `
+                <button data-index="${i}" class="conv-item w-full text-left p-3 rounded-xl hover:bg-slate-50 transition flex items-start gap-2 ${c.id === currentResumeId ? 'bg-indigo-50' : ''}">
+                    <i data-lucide="${c.type === 'cours' ? 'graduation-cap' : 'message-circle'}" class="h-4 w-4 flex-none mt-0.5 ${c.type === 'cours' ? 'text-indigo-600' : 'text-slate-400'}"></i>
+                    <div class="overflow-hidden">
+                        <div class="text-xs font-bold text-slate-800 truncate">${c.titre}</div>
+                        ${c.matiere ? `<div class="text-[10px] text-indigo-600 font-semibold">${c.matiere}</div>` : ''}
+                    </div>
+                </button>
+            `).join('');
+
+            conversationsListEl.querySelectorAll('.conv-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    selectionnerConversation(conversationsCache[Number(btn.dataset.index)].id);
+                    fermerSidebar();
+                });
+            });
+
+            lucide.createIcons();
+        }
+
+        async function selectionnerConversation(id) {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            const { data: conv, error } = await supabaseClient.from('resumes_cours').select('*').eq('id', id).single();
+            if (error || !conv) { afficherErreurGlobale('Conversation introuvable.'); return; }
+
+            currentResumeId = conv.id;
+            currentResumeTexte = conv.resume_texte;
+            conversationTitleEl.textContent = conv.titre;
+
+            if (conv.type === 'cours') {
+                toggleOutilsBtn.classList.remove('hidden');
+            } else {
+                toggleOutilsBtn.classList.add('hidden');
+                fermerOutils();
+            }
+
+            const { data: messages } = await supabaseClient
+                .from('messages_prof_ia')
+                .select('*')
+                .eq('resume_id', id)
+                .order('created_at', { ascending: true });
+
+            chatThread.innerHTML = '';
+            if (!messages || messages.length === 0) {
+                afficherEtatVide();
+            } else {
+                messages.forEach(m => ajouterBulleChat(m.role, m.content));
+            }
+
+            currentFlashcards = [];
+            if (conv.type === 'cours') chargerFlashcardsExistantes(id);
+
+            renderConversationsList();
+        }
+
+        function nouvelleConversation() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            currentResumeId = null;
+            currentResumeTexte = null;
+            currentFlashcards = [];
+            conversationTitleEl.textContent = 'Professeur IA';
+            toggleOutilsBtn.classList.add('hidden');
+            fermerOutils();
+            afficherEtatVide();
+            messageInput.value = '';
+            annulerPdfAttache();
+            renderConversationsList();
+            fermerSidebar();
+        }
+
+        nouvelleConvBtn.addEventListener('click', nouvelleConversation);
+
+        // ------------------------------------------------------------
+        // PIÈCE JOINTE PDF
+        // ------------------------------------------------------------
+        attachBtn.addEventListener('click', () => pdfInput.click());
+
+        pdfInput.addEventListener('change', () => {
+            const file = pdfInput.files[0];
+            if (!file) return;
+            if (file.size > TAILLE_MAX_OCTETS) {
+                afficherErreurGlobale('Ce PDF dépasse 3 Mo. Essaie de le compresser ou de le scanner en plus basse qualité.');
+                pdfInput.value = '';
+                return;
+            }
+            pdfAttacheNom.textContent = file.name;
+            pdfAttachePreview.classList.remove('hidden');
+        });
+
+        function annulerPdfAttache() {
+            pdfInput.value = '';
+            pdfAttachePreview.classList.add('hidden');
+        }
+        pdfAttacheRemoveBtn.addEventListener('click', annulerPdfAttache);
+
+        // ------------------------------------------------------------
+        // ENVOI D'UN MESSAGE (texte seul, ou avec PDF joint)
+        // ------------------------------------------------------------
+        composerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const texte = messageInput.value.trim();
+            const fichier = pdfInput.files[0];
+            if (!texte && !fichier) return;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) { afficherErreurGlobale('Tu dois être connecté pour utiliser le Professeur IA.'); return; }
+
+            sendBtn.disabled = true;
+            messageInput.value = '';
+
+            if (chatThread.querySelector('.h-full.flex.flex-col')) chatThread.innerHTML = '';
+
+            if (fichier) {
+                ajouterBulleChat('user', texte || `📎 ${fichier.name}`);
+                const bulleChargement = ajouterBulleChargement();
+                annulerPdfAttache();
+
+                try {
+                    const pdfBase64 = await fichierEnBase64(fichier);
+                    const response = await fetch('/api/analyser-cours', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pdfBase64, message: texte || null, userId: user.id })
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'Erreur inconnue.');
+
+                    bulleChargement.remove();
+                    ajouterBulleChat('ia', payload.resume_texte);
+
+                    currentResumeId = payload.conversationId;
+                    currentResumeTexte = payload.resume_texte;
+                    conversationTitleEl.textContent = payload.titre;
+                    currentFlashcards = [];
+                    toggleOutilsBtn.classList.remove('hidden');
+                    await chargerConversations();
+
+                } catch (err) {
+                    console.error(err);
+                    bulleChargement.remove();
+                    ajouterBulleChat('ia', "Désolé, je n'ai pas pu analyser ce cours. " + (err.message || ''));
+                } finally {
+                    sendBtn.disabled = false;
+                }
+
+            } else {
+                ajouterBulleChat('user', texte);
+                const bulleChargement = ajouterBulleChargement();
+
+                try {
+                    const response = await fetch('/api/chat-cours', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ conversationId: currentResumeId, question: texte, userId: user.id })
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'Erreur inconnue.');
+
+                    bulleChargement.remove();
+                    ajouterBulleChat('ia', payload.reponse);
+
+                    if (!currentResumeId) {
+                        currentResumeId = payload.conversationId;
+                        conversationTitleEl.textContent = payload.titre || texte.slice(0, 50);
+                        await chargerConversations();
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    bulleChargement.remove();
+                    ajouterBulleChat('ia', "Désolé, je n'ai pas pu répondre. Réessaie dans un instant.");
+                } finally {
+                    sendBtn.disabled = false;
+                }
+            }
+        });
+
+        // ------------------------------------------------------------
+        // AUDIO (lecture du résumé de la conversation affichée)
+        // ------------------------------------------------------------
+        lireAudioBtn.addEventListener('click', () => {
+            if (!currentResumeTexte) return;
+            if (!('speechSynthesis' in window)) {
+                afficherErreurGlobale("La lecture audio n'est pas supportée par ce navigateur.");
+                return;
+            }
+
             if (window.speechSynthesis.speaking) {
                 window.speechSynthesis.cancel();
                 return;
             }
 
-            const utterance = new SpeechSynthesisUtterance(resumeContent.textContent);
+            const utterance = new SpeechSynthesisUtterance(currentResumeTexte);
             utterance.lang = 'fr-FR';
             utterance.rate = 0.95;
 
@@ -377,90 +528,6 @@
         });
 
         // ------------------------------------------------------------
-        // CHAT AVEC LE PROFESSEUR IA SUR LE COURS AFFICHÉ
-        // ------------------------------------------------------------
-        function ajouterBulleChat(role, contenu) {
-            const estIA = role === 'ia';
-            const bulle = document.createElement('div');
-            bulle.className = estIA ? 'flex gap-2' : 'flex gap-2 flex-row-reverse';
-            bulle.innerHTML = `
-                <div class="h-7 w-7 rounded-full flex-none flex items-center justify-center text-xs font-bold ${estIA ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' : 'bg-indigo-600 text-white'}">
-                    ${estIA ? '🤖' : 'Toi'}
-                </div>
-                <div class="text-xs leading-relaxed p-3 rounded-2xl max-w-[80%] whitespace-pre-wrap ${estIA ? 'bg-amber-50 border border-amber-200 text-slate-700 rounded-tl-none' : 'bg-indigo-600 text-white rounded-tr-none'}">
-                    ${contenu.replace(/</g, '&lt;')}
-                </div>
-            `;
-            chatMessages.appendChild(bulle);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        // Charge les échanges déjà enregistrés pour ce résumé
-        async function chargerMessagesChat(resumeId) {
-            const { data, error } = await supabaseClient
-                .from('messages_prof_ia')
-                .select('*')
-                .eq('resume_id', resumeId)
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                console.error('Erreur chargement chat:', error);
-                return;
-            }
-
-            chatMessages.innerHTML = '';
-            if (!data || data.length === 0) {
-                chatMessages.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">Aucune question posée pour l\'instant sur ce cours.</p>';
-                return;
-            }
-            data.forEach(m => ajouterBulleChat(m.role, m.content));
-        }
-
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const question = chatInput.value.trim();
-            if (!question || !currentResumeId) return;
-
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                afficherErreur('Tu dois être connecté pour discuter avec le Professeur IA.');
-                return;
-            }
-
-            const placeholderVide = chatMessages.querySelector('p');
-            if (placeholderVide) placeholderVide.remove();
-
-            ajouterBulleChat('user', question);
-            chatInput.value = '';
-            chatSendBtn.disabled = true;
-            chatLoading.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/chat-cours', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resumeId: currentResumeId, question, userId: user.id })
-                });
-
-                const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Une erreur est survenue.');
-                }
-
-                ajouterBulleChat('ia', payload.reponse);
-
-            } catch (err) {
-                console.error(err);
-                ajouterBulleChat('ia', "Désolé, je n'ai pas pu répondre. Réessaie dans un instant.");
-            } finally {
-                chatSendBtn.disabled = false;
-                chatLoading.classList.add('hidden');
-            }
-        });
-
-        // ------------------------------------------------------------
         // FLASHCARDS : génération et session de révision
         // ------------------------------------------------------------
         function renderFlashcardsControls() {
@@ -468,7 +535,7 @@
 
             if (currentFlashcards.length === 0) {
                 flashcardsControls.innerHTML = `
-                    <button type="button" id="generer-flashcards-btn" class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition">
+                    <button type="button" id="generer-flashcards-btn" class="w-full flex items-center justify-center gap-1.5 py-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 text-xs font-bold text-indigo-600 rounded-xl transition">
                         <i data-lucide="sparkles" class="h-4 w-4"></i> Générer des flashcards
                     </button>
                 `;
@@ -476,12 +543,14 @@
                 document.getElementById('generer-flashcards-btn').addEventListener('click', () => genererFlashcards(false));
             } else {
                 flashcardsControls.innerHTML = `
-                    <div class="flex items-center justify-between flex-wrap gap-2">
-                        <p class="text-xs text-slate-500">${currentFlashcards.length} flashcard(s) disponible(s)</p>
-                        <div class="flex items-center gap-3">
-                            <button type="button" id="regenerer-flashcards-btn" class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition">Régénérer</button>
-                            <button type="button" id="reviser-flashcards-btn" class="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition">
-                                <i data-lucide="play" class="h-4 w-4"></i> Réviser
+                    <div class="space-y-2">
+                        <p class="text-[11px] text-slate-500">${currentFlashcards.length} flashcard(s) disponible(s)</p>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="reviser-flashcards-btn" class="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition">
+                                <i data-lucide="play" class="h-3.5 w-3.5"></i> Réviser
+                            </button>
+                            <button type="button" id="regenerer-flashcards-btn" class="p-2 text-slate-400 hover:text-indigo-600 transition" title="Régénérer">
+                                <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
                             </button>
                         </div>
                     </div>
@@ -492,7 +561,6 @@
             }
         }
 
-        // Charge les flashcards déjà générées pour ce résumé (sans en générer de nouvelles)
         async function chargerFlashcardsExistantes(resumeId) {
             const { data, error } = await supabaseClient
                 .from('flashcards')
@@ -505,7 +573,6 @@
             renderFlashcardsControls();
         }
 
-        // Demande la génération (ou régénération) des flashcards à l'IA
         async function genererFlashcards(regenerer) {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user || !currentResumeId) return;
@@ -519,31 +586,23 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ resumeId: currentResumeId, userId: user.id, regenerer })
                 });
-
                 const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Une erreur est survenue.');
-                }
-
+                if (!response.ok) throw new Error(payload.error || 'Une erreur est survenue.');
                 currentFlashcards = payload.flashcards || [];
-
             } catch (err) {
                 console.error(err);
-                afficherErreur(err.message || "Impossible de générer les flashcards pour le moment.");
+                afficherErreurGlobale(err.message || "Impossible de générer les flashcards pour le moment.");
             } finally {
                 flashcardsLoading.classList.add('hidden');
                 renderFlashcardsControls();
             }
         }
 
-        // Démarre (ou relance) une session de révision carte par carte
         function demarrerSessionFlashcards() {
             sessionIndex = 0;
             sessionMaitrisees = 0;
             flashcardSession.classList.remove('hidden');
             afficherCarteSession();
-            flashcardSession.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function afficherCarteSession() {
@@ -558,7 +617,6 @@
             flashcardFace.textContent = carte.question;
         }
 
-        // Clique sur la carte : révèle la réponse
         flashcardBox.addEventListener('click', () => {
             if (flashcardSession.classList.contains('hidden') || carteRetournee) return;
             const carte = currentFlashcards[sessionIndex];
@@ -568,7 +626,6 @@
             carteRetournee = true;
         });
 
-        // Passe à la carte suivante et met à jour le niveau de maîtrise (best-effort, sert de base à une future révision espacée)
         async function passerCarteSuivante(maitrisee) {
             const carte = currentFlashcards[sessionIndex];
             if (maitrisee) sessionMaitrisees++;
@@ -601,59 +658,10 @@
         flashcardRecommencerBtn.addEventListener('click', demarrerSessionFlashcards);
 
         // ------------------------------------------------------------
-        // HISTORIQUE DES RÉSUMÉS
+        // INITIALISATION
         // ------------------------------------------------------------
-        async function chargerHistorique() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                historiqueContainer.innerHTML = '<p class="text-xs text-slate-400">Connecte-toi pour voir tes résumés.</p>';
-                return;
-            }
-
-            const { data, error } = await supabaseClient
-                .from('resumes_cours')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                historiqueContainer.innerHTML = '<p class="text-xs text-red-500">Erreur lors du chargement de l\'historique.</p>';
-                return;
-            }
-
-            historiqueResumes = data || [];
-
-            if (historiqueResumes.length === 0) {
-                historiqueContainer.innerHTML = '<p class="text-xs text-slate-400">Aucun cours résumé pour le moment.</p>';
-                return;
-            }
-
-            historiqueContainer.innerHTML = historiqueResumes.map((r, i) => `
-                <button data-index="${i}" class="historique-item w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition flex items-center justify-between gap-3">
-                    <div class="overflow-hidden">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded">${r.matiere}</span>
-                            <span class="text-[10px] text-slate-400">${new Date(r.created_at).toLocaleDateString('fr-FR')}</span>
-                        </div>
-                        <div class="text-xs font-bold text-slate-800 truncate">${r.titre}</div>
-                    </div>
-                    <i data-lucide="chevron-right" class="h-4 w-4 text-slate-300 flex-none"></i>
-                </button>
-            `).join('');
-
-            historiqueContainer.querySelectorAll('.historique-item').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const r = historiqueResumes[Number(btn.dataset.index)];
-                    afficherResume(r.id, r.titre, r.resume_texte);
-                    resultState.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
-            });
-
-            lucide.createIcons();
-        }
-
-        // Initialisation
-        chargerHistorique();
+        afficherEtatVide();
+        chargerConversations();
     </script>
 </body>
 </html>
