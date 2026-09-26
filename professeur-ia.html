@@ -281,6 +281,7 @@
 
         // Affiche un résumé (nouveau ou depuis l'historique) et prépare le chat associé
         function afficherResume(resumeId, titre, texte) {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             currentResumeId = resumeId;
             resultTitle.innerHTML = `<i data-lucide="check-circle-2" class="h-4 w-4 text-emerald-600"></i> ${titre}`;
             resumeContent.textContent = texte;
@@ -291,16 +292,32 @@
             lucide.createIcons();
         }
 
-        // Lecture audio du résumé via l'API navigateur (gratuite, sans backend)
+        // Lecture audio du résumé via l'API navigateur — bouton play/stop
         lireAudioBtn.addEventListener('click', () => {
             if (!('speechSynthesis' in window)) {
                 afficherErreur("La lecture audio n'est pas supportée par ce navigateur.");
                 return;
             }
-            window.speechSynthesis.cancel();
+
+            // Si une lecture est en cours, on l'arrête (le bouton se remet à jour via onend/onerror)
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                return;
+            }
+
             const utterance = new SpeechSynthesisUtterance(resumeContent.textContent);
             utterance.lang = 'fr-FR';
             utterance.rate = 0.95;
+
+            utterance.onstart = () => {
+                lireAudioBtn.innerHTML = '<i data-lucide="square" class="h-4 w-4"></i> Arrêter la lecture';
+                lucide.createIcons();
+            };
+            utterance.onend = utterance.onerror = () => {
+                lireAudioBtn.innerHTML = '<i data-lucide="volume-2" class="h-4 w-4"></i> Écouter le résumé';
+                lucide.createIcons();
+            };
+
             window.speechSynthesis.speak(utterance);
         });
 
