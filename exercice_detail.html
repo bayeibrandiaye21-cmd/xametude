@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="XamÉtudes">
 </head>
-<body class="overflow-x-hidden bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
 
     <!-- NAVBAR TOP -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
@@ -62,13 +62,9 @@
 
                 <!-- Profil de l'auteur -->
                 <div class="flex items-center gap-3 pt-1 border-b border-slate-100 pb-4">
-                    <a id="ex-author-avatar-link" href="#" class="h-10 w-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm hover:opacity-80 transition">
-                        <span id="ex-author-avatar">??</span>
-                    </a>
+                    <div id="ex-author-avatar" class="h-10 w-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">??</div>
                     <div>
-                        <a id="ex-author-name-link" href="#" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition">
-                            <span id="ex-author-name"></span>
-                        </a>
+                        <div id="ex-author-name" class="text-xs font-bold text-slate-800"></div>
                         <div id="ex-date" class="text-[10px] text-slate-400"></div>
                     </div>
                 </div>
@@ -102,7 +98,23 @@
                 <form id="reply-form" class="space-y-4">
                     <textarea id="reply-content" rows="4" required placeholder="Explique clairement ta démarche étape par étape..."
                               class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm"></textarea>
-                    
+
+                    <div>
+                        <input type="file" id="reply-image-input" accept="image/*" class="hidden">
+
+                        <div id="reply-image-preview" class="hidden flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-semibold mb-2">
+                            <i data-lucide="image" class="h-3.5 w-3.5 flex-none"></i>
+                            <span id="reply-image-name" class="truncate flex-1"></span>
+                            <button type="button" id="reply-image-remove-btn" class="text-indigo-400 hover:text-red-500 font-bold flex-none">
+                                <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                            </button>
+                        </div>
+
+                        <button type="button" id="reply-image-btn" class="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition">
+                            <i data-lucide="camera" class="h-3.5 w-3.5"></i> Ajouter une photo (optionnel)
+                        </button>
+                    </div>
+
                     <div class="flex items-center justify-end pt-2">
                         <button type="submit" id="reply-submit-btn" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center gap-2 disabled:opacity-50">
                             <i data-lucide="send" class="h-4 w-4"></i> <span id="reply-submit-label">Envoyer ma réponse</span>
@@ -181,8 +193,6 @@
             document.getElementById('ex-title').textContent = ex.title;
             document.getElementById('ex-author-name').textContent = ex.profiles?.name || 'Élève';
             document.getElementById('ex-author-avatar').textContent = ex.profiles?.initials || initiales(ex.profiles?.name);
-            document.getElementById('ex-author-name-link').href = 'profil.html?user=' + ex.user_id;
-            document.getElementById('ex-author-avatar-link').href = 'profil.html?user=' + ex.user_id;
             document.getElementById('ex-date').textContent = formatDate(ex.created_at);
             document.getElementById('ex-description').textContent = ex.description;
 
@@ -222,9 +232,9 @@
                 <div class="bg-white rounded-2xl p-6 border ${a.is_validated ? 'border-emerald-200' : 'border-slate-200'} shadow-sm space-y-3 relative">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <a href="profil.html?user=${a.user_id}" class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs hover:opacity-80 transition">${a.profiles?.initials || initiales(a.profiles?.name)}</a>
+                            <div class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs">${a.profiles?.initials || initiales(a.profiles?.name)}</div>
                             <div>
-                                <a href="profil.html?user=${a.user_id}" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition">${a.profiles?.name || 'Élève'}</a>
+                                <div class="text-xs font-bold text-slate-800">${a.profiles?.name || 'Élève'}</div>
                                 <div class="text-[10px] text-slate-400">${formatDate(a.created_at)}</div>
                             </div>
                         </div>
@@ -234,6 +244,12 @@
                         </span>` : ''}
                     </div>
                     <div class="text-sm text-slate-700 leading-relaxed pt-2 whitespace-pre-line">${a.content.replace(/</g, '&lt;')}</div>
+                    ${a.image_url ? `
+                    <div class="pt-1">
+                        <a href="${a.image_url}" target="_blank">
+                            <img src="${a.image_url}" alt="Photo de la réponse" class="rounded-xl border border-slate-200 max-w-full max-h-72 object-contain">
+                        </a>
+                    </div>` : ''}
                     ${(!a.is_validated && currentUser && exerciseOwnerId === currentUser.id) ? `
                     <div class="pt-2 border-t border-slate-100">
                         <button onclick="validerReponse('${a.id}')" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
@@ -246,6 +262,39 @@
             lucide.createIcons();
         }
 
+        // ============================================
+        // PHOTO JOINTE À LA RÉPONSE
+        // ============================================
+        const replyImageInput = document.getElementById('reply-image-input');
+        const replyImageBtn = document.getElementById('reply-image-btn');
+        const replyImagePreview = document.getElementById('reply-image-preview');
+        const replyImageName = document.getElementById('reply-image-name');
+        const replyImageRemoveBtn = document.getElementById('reply-image-remove-btn');
+
+        replyImageBtn.addEventListener('click', () => replyImageInput.click());
+
+        replyImageInput.addEventListener('change', () => {
+            const file = replyImageInput.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                afficherToast('Cette photo dépasse 5 Mo, choisis-en une plus légère.', 'error');
+                replyImageInput.value = '';
+                return;
+            }
+
+            replyImageName.textContent = file.name;
+            replyImageBtn.classList.add('hidden');
+            replyImagePreview.classList.remove('hidden');
+        });
+
+        function annulerReplyImage() {
+            replyImageInput.value = '';
+            replyImagePreview.classList.add('hidden');
+            replyImageBtn.classList.remove('hidden');
+        }
+        replyImageRemoveBtn.addEventListener('click', annulerReplyImage);
+
         document.getElementById('reply-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -257,9 +306,38 @@
             btn.disabled = true;
             label.textContent = 'Envoi en cours...';
 
+            // Upload de la photo jointe, si présente (réutilise le bucket exercice-images)
+            let imageUrl = null;
+            const imageFile = replyImageInput.files[0];
+            if (imageFile) {
+                try {
+                    const fileExt = imageFile.name.split('.').pop();
+                    const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
+
+                    const { error: uploadError } = await window.supabaseClient
+                        .storage
+                        .from('exercice-images')
+                        .upload(fileName, imageFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = window.supabaseClient
+                        .storage
+                        .from('exercice-images')
+                        .getPublicUrl(fileName);
+
+                    imageUrl = urlData.publicUrl;
+                } catch (uploadErr) {
+                    afficherToast(traduireErreur(uploadErr), 'error');
+                    btn.disabled = false;
+                    label.textContent = 'Envoyer ma réponse';
+                    return;
+                }
+            }
+
             const { error } = await window.supabaseClient
                 .from('answers')
-                .insert({ exercise_id: exerciseId, user_id: currentUser.id, content: content });
+                .insert({ exercise_id: exerciseId, user_id: currentUser.id, content: content, image_url: imageUrl });
 
             if (error) {
                 afficherToast(traduireErreur(error), 'error');
@@ -289,6 +367,7 @@
             }
 
             document.getElementById('reply-content').value = '';
+            annulerReplyImage();
             btn.disabled = false;
             label.textContent = 'Envoyer ma réponse';
 
