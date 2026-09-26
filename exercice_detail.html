@@ -52,8 +52,18 @@
                         <span id="ex-subject" class="bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1 rounded-full"></span>
                         <span id="ex-level" class="bg-slate-100 text-slate-600 font-medium text-xs px-2.5 py-1 rounded-full"></span>
                     </div>
-                    <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
-                        <i data-lucide="award" class="h-4 w-4 text-amber-500"></i> +<span id="ex-reward">20</span> Points à gagner
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                            <i data-lucide="award" class="h-4 w-4 text-amber-500"></i> +<span id="ex-reward">20</span> Points à gagner
+                        </div>
+                        <div id="ex-owner-actions" class="hidden flex items-center gap-3">
+                            <button id="ex-edit-btn" class="text-xs font-semibold text-slate-500 hover:text-indigo-600 transition flex items-center gap-1">
+                                <i data-lucide="edit-3" class="h-3.5 w-3.5"></i> Modifier
+                            </button>
+                            <button id="ex-delete-btn" class="text-xs font-semibold text-slate-500 hover:text-red-600 transition flex items-center gap-1">
+                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i> Supprimer
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -75,6 +85,48 @@
                 <!-- Pièce jointe / Image -->
                 <div id="ex-image-container" class="hidden pt-2">
                     <img id="ex-image" src="" alt="Photo de l'exercice" class="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain">
+                </div>
+
+                <!-- FORMULAIRE D'ÉDITION DE L'EXERCICE (masqué par défaut) -->
+                <div id="ex-edit-form" class="hidden space-y-4 pt-4 border-t border-slate-100">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Matière</label>
+                            <select id="edit-ex-subject" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                                <option value="Mathématiques">Mathématiques</option>
+                                <option value="Physique-Chimie">Physique - Chimie</option>
+                                <option value="SVT">Sciences de la Vie et de la Terre (SVT)</option>
+                                <option value="Philosophie">Philosophie</option>
+                                <option value="Français">Français</option>
+                                <option value="Anglais">Anglais</option>
+                                <option value="Histoire-Géo">Histoire - Géographie</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Niveau / Classe</label>
+                            <select id="edit-ex-level" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                                <option value="Terminale S2">Terminale S2</option>
+                                <option value="Terminale S1">Terminale S1</option>
+                                <option value="Terminale L">Terminale L</option>
+                                <option value="Première S">Première S</option>
+                                <option value="Première L">Première L</option>
+                                <option value="Seconde">Seconde</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Titre</label>
+                        <input type="text" id="edit-ex-title" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Description</label>
+                        <textarea id="edit-ex-description" rows="5" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm"></textarea>
+                    </div>
+                    <p class="text-[11px] text-slate-400">La photo jointe (si tu en as ajouté une) ne peut pas être changée ici — supprime et republie l'exercice si besoin.</p>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" id="ex-edit-cancel-btn" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">Annuler</button>
+                        <button type="button" id="ex-edit-save-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition">Enregistrer</button>
+                    </div>
                 </div>
 
             </article>
@@ -135,6 +187,7 @@
         let exerciseId = null;
         let exerciseOwnerId = null;
         let exerciseTitle = null;
+        let exerciseData = null;
 
         const subjectColors = {
             "Mathématiques": "bg-indigo-100 text-indigo-700",
@@ -186,6 +239,8 @@
                 return;
             }
 
+            exerciseData = ex;
+
             document.getElementById('ex-subject').textContent = ex.subject;
             document.getElementById('ex-subject').className = 'font-bold text-xs px-3 py-1 rounded-full ' + (subjectColors[ex.subject] || 'bg-indigo-100 text-indigo-700');
             document.getElementById('ex-level').textContent = ex.level;
@@ -204,10 +259,86 @@
                 document.getElementById('ex-image-container').classList.remove('hidden');
             }
 
+            if (currentUser && currentUser.id === exerciseOwnerId) {
+                document.getElementById('ex-owner-actions').classList.remove('hidden');
+            }
+
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('content').classList.remove('hidden');
         }
 
+        // ============================================
+        // MODIFIER / SUPPRIMER SON PROPRE EXERCICE
+        // ============================================
+        const exTitleEl = document.getElementById('ex-title');
+        const exDescriptionEl = document.getElementById('ex-description');
+        const exEditForm = document.getElementById('ex-edit-form');
+
+        document.getElementById('ex-edit-btn').addEventListener('click', () => {
+            document.getElementById('edit-ex-subject').value = exerciseData.subject;
+            document.getElementById('edit-ex-level').value = exerciseData.level;
+            document.getElementById('edit-ex-title').value = exerciseData.title;
+            document.getElementById('edit-ex-description').value = exerciseData.description;
+
+            exTitleEl.classList.add('hidden');
+            exDescriptionEl.classList.add('hidden');
+            exEditForm.classList.remove('hidden');
+        });
+
+        document.getElementById('ex-edit-cancel-btn').addEventListener('click', () => {
+            exEditForm.classList.add('hidden');
+            exTitleEl.classList.remove('hidden');
+            exDescriptionEl.classList.remove('hidden');
+        });
+
+        document.getElementById('ex-edit-save-btn').addEventListener('click', async () => {
+            const subject = document.getElementById('edit-ex-subject').value;
+            const level = document.getElementById('edit-ex-level').value;
+            const title = document.getElementById('edit-ex-title').value.trim();
+            const description = document.getElementById('edit-ex-description').value.trim();
+
+            if (!title || !description) {
+                afficherToast('Le titre et la description ne peuvent pas être vides.', 'error');
+                return;
+            }
+
+            const { error } = await window.supabaseClient
+                .from('exercises')
+                .update({ subject, level, title, description })
+                .eq('id', exerciseId);
+
+            if (error) {
+                afficherToast(traduireErreur(error), 'error');
+                return;
+            }
+
+            afficherToast('Exercice mis à jour !', 'success');
+            exEditForm.classList.add('hidden');
+            exTitleEl.classList.remove('hidden');
+            exDescriptionEl.classList.remove('hidden');
+            await chargerExercice();
+        });
+
+        document.getElementById('ex-delete-btn').addEventListener('click', async () => {
+            if (!confirm('Supprimer définitivement cet exercice et toutes ses réponses ? Cette action est irréversible.')) return;
+
+            try {
+                await window.supabaseClient.from('answers').delete().eq('exercise_id', exerciseId);
+
+                const { error } = await window.supabaseClient.from('exercises').delete().eq('id', exerciseId);
+                if (error) throw error;
+
+                afficherToast('Exercice supprimé.', 'success');
+                setTimeout(() => window.location.href = 'xam.html', 600);
+            } catch (err) {
+                console.error(err);
+                afficherToast(traduireErreur(err), 'error');
+            }
+        });
+
+        // ============================================
+        // AFFICHAGE DES RÉPONSES
+        // ============================================
         async function chargerReponses() {
             const { data: answers, error } = await window.supabaseClient
                 .from('answers')
@@ -229,7 +360,7 @@
             }
 
             list.innerHTML = answers.map(a => `
-                <div class="bg-white rounded-2xl p-6 border ${a.is_validated ? 'border-emerald-200' : 'border-slate-200'} shadow-sm space-y-3 relative">
+                <div class="bg-white rounded-2xl p-6 border ${a.is_validated ? 'border-emerald-200' : 'border-slate-200'} shadow-sm space-y-3 relative" data-answer-id="${a.id}">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="h-9 w-9 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center text-xs">${a.profiles?.initials || initiales(a.profiles?.name)}</div>
@@ -238,12 +369,21 @@
                                 <div class="text-[10px] text-slate-400">${formatDate(a.created_at)}</div>
                             </div>
                         </div>
-                        ${a.is_validated ? `
-                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
-                            <i data-lucide="check-circle" class="h-3.5 w-3.5 text-emerald-600"></i> Solution validée
-                        </span>` : ''}
+                        <div class="flex items-center gap-2">
+                            ${a.is_validated ? `
+                            <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                <i data-lucide="check-circle" class="h-3.5 w-3.5 text-emerald-600"></i> Solution validée
+                            </span>` : ''}
+                            ${(currentUser && a.user_id === currentUser.id) ? `
+                            <button onclick="modifierReponse('${a.id}')" title="Modifier" class="text-slate-300 hover:text-indigo-600 transition p-1">
+                                <i data-lucide="edit-3" class="h-3.5 w-3.5"></i>
+                            </button>
+                            <button onclick="supprimerReponse('${a.id}')" title="Supprimer" class="text-slate-300 hover:text-red-500 transition p-1">
+                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                            </button>` : ''}
+                        </div>
                     </div>
-                    <div class="text-sm text-slate-700 leading-relaxed pt-2 whitespace-pre-line">${a.content.replace(/</g, '&lt;')}</div>
+                    <div id="content-${a.id}" class="text-sm text-slate-700 leading-relaxed pt-2 whitespace-pre-line" data-raw="${encodeURIComponent(a.content)}">${a.content.replace(/</g, '&lt;')}</div>
                     ${a.image_url ? `
                     <div class="pt-1">
                         <a href="${a.image_url}" target="_blank">
@@ -260,6 +400,54 @@
             `).join('');
 
             lucide.createIcons();
+        }
+
+        // ============================================
+        // MODIFIER / SUPPRIMER SA PROPRE RÉPONSE
+        // ============================================
+        function modifierReponse(answerId) {
+            const contentEl = document.getElementById('content-' + answerId);
+            if (!contentEl) return;
+            const texteActuel = decodeURIComponent(contentEl.dataset.raw);
+
+            contentEl.outerHTML = `
+                <div id="content-${answerId}" class="pt-2 space-y-2">
+                    <textarea id="edit-textarea-${answerId}" rows="4" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">${texteActuel}</textarea>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="chargerReponses()" class="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition">Annuler</button>
+                        <button onclick="enregistrerEditionReponse('${answerId}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition">Enregistrer</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function enregistrerEditionReponse(answerId) {
+            const nouveauTexte = document.getElementById('edit-textarea-' + answerId).value.trim();
+            if (!nouveauTexte) return;
+
+            const { error } = await window.supabaseClient.from('answers').update({ content: nouveauTexte }).eq('id', answerId);
+
+            if (error) {
+                afficherToast(traduireErreur(error), 'error');
+                return;
+            }
+
+            afficherToast('Réponse modifiée.', 'success');
+            await chargerReponses();
+        }
+
+        async function supprimerReponse(answerId) {
+            if (!confirm('Supprimer définitivement cette réponse ?')) return;
+
+            const { error } = await window.supabaseClient.from('answers').delete().eq('id', answerId);
+
+            if (error) {
+                afficherToast(traduireErreur(error), 'error');
+                return;
+            }
+
+            afficherToast('Réponse supprimée.', 'success');
+            await chargerReponses();
         }
 
         // ============================================
@@ -306,7 +494,6 @@
             btn.disabled = true;
             label.textContent = 'Envoi en cours...';
 
-            // Upload de la photo jointe, si présente (réutilise le bucket exercice-images)
             let imageUrl = null;
             const imageFile = replyImageInput.files[0];
             if (imageFile) {
@@ -346,14 +533,12 @@
                 return;
             }
 
-            // Met à jour les stats du profil de celui qui répond (aide un camarade)
             try {
                 await window.supabaseClient.rpc('increment_solved_count', { p_user_id: currentUser.id });
             } catch (statErr) {
                 console.warn("Stat non mise à jour (non bloquant) :", statErr);
             }
 
-            // Notifie l'auteur de la question (sauf si c'est lui-même qui répond à sa propre question)
             if (exerciseOwnerId && exerciseOwnerId !== currentUser.id) {
                 try {
                     await window.supabaseClient.from('notifications').insert({
