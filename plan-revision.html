@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XamÉtudes - Planning de révision</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="XamÉtudes">
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <!-- NAVBAR TOP -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="xam.html" class="flex items-center gap-2 hover:opacity-90 transition">
+                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">XÉ</div>
+                <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">XamÉtudes</span>
+            </a>
+            <div class="flex items-center gap-1">
+                <div id="notif-bell-container"></div>
+                <a href="professeur-ia.html" class="text-xs font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="h-4 w-4"></i> Professeur IA
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="bg-gradient-to-b from-indigo-900 to-indigo-800 text-white py-10 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl mx-auto text-center space-y-2">
+            <div class="inline-flex p-3 bg-white/10 rounded-2xl mb-1">
+                <i data-lucide="calendar-clock" class="h-7 w-7"></i>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold">Planning de révision</h1>
+            <p class="text-indigo-200 text-xs sm:text-sm">L'IA répartit tes cours déjà résumés sur les jours qui précèdent ton examen.</p>
+        </div>
+    </section>
+
+    <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-8 space-y-6">
+
+        <!-- FORMULAIRE DE GÉNÉRATION -->
+        <section id="form-section" class="hidden bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
+            <div>
+                <label for="date-examen" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    Date de ton examen <span class="text-red-500">*</span>
+                </label>
+                <input type="date" id="date-examen" required
+                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition text-sm">
+                <p class="text-[11px] text-slate-400 mt-1.5">Le planning couvre au maximum les 21 jours précédant l'examen.</p>
+            </div>
+
+            <div id="generer-error" class="hidden p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl"></div>
+
+            <button type="button" id="generer-btn" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md shadow-indigo-200 transition flex items-center justify-center gap-2">
+                <i data-lucide="sparkles" class="h-4 w-4"></i> Générer mon planning
+            </button>
+
+            <div id="generer-loading" class="hidden flex flex-col items-center gap-3 py-4 text-center">
+                <div class="h-8 w-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <p class="text-xs font-semibold text-slate-500">Construction de ton planning...</p>
+            </div>
+        </section>
+
+        <!-- AFFICHAGE DU PLANNING -->
+        <section id="planning-section" class="hidden space-y-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Examen le</p>
+                        <p id="examen-date-label" class="text-sm font-bold text-slate-800"></p>
+                    </div>
+                    <button id="regenerer-btn" class="text-xs font-semibold text-slate-400 hover:text-indigo-600 transition flex items-center gap-1">
+                        <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i> Nouveau planning
+                    </button>
+                </div>
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                        <span id="progression-label">0 / 0 tâches</span>
+                        <span id="progression-pct">0 %</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="progression-bar" class="h-full bg-indigo-600 transition-all" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jours-container" class="space-y-3"></div>
+        </section>
+
+    </main>
+
+    <script src="config.js"></script>
+    <script>
+        lucide.createIcons();
+
+        let currentUser = null;
+        let planningActuel = null;
+
+        (async () => {
+            currentUser = await verifierConnexion();
+            if (!currentUser) return;
+
+            initNotifBell('notif-bell-container', currentUser.id);
+            await chargerPlanning();
+        })();
+
+        async function chargerPlanning() {
+            const { data, error } = await window.supabaseClient
+                .from('plannings_revision')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Erreur chargement planning:', error);
+            }
+
+            planningActuel = data || null;
+            afficherEtatCourant();
+        }
+
+        function afficherEtatCourant() {
+            const formSection = document.getElementById('form-section');
+            const planningSection = document.getElementById('planning-section');
+
+            if (!planningActuel) {
+                formSection.classList.remove('hidden');
+                planningSection.classList.add('hidden');
+            } else {
+                formSection.classList.add('hidden');
+                planningSection.classList.remove('hidden');
+                afficherPlanning();
+            }
+        }
+
+        function formatDateLisible(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            const texte = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+            return texte.charAt(0).toUpperCase() + texte.slice(1);
+        }
+
+        document.getElementById('generer-btn').addEventListener('click', async () => {
+            const dateExamen = document.getElementById('date-examen').value;
+            const errorEl = document.getElementById('generer-error');
+            errorEl.classList.add('hidden');
+
+            if (!dateExamen) {
+                errorEl.textContent = "Choisis d'abord une date d'examen.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.getElementById('generer-btn');
+            btn.disabled = true;
+            document.getElementById('generer-loading').classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/generer-planning', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, dateExamen })
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Une erreur est survenue.');
+
+                planningActuel = payload.planning;
+                afficherEtatCourant();
+                afficherToast('Ton planning de révision est prêt !', 'success');
+
+            } catch (err) {
+                console.error(err);
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                document.getElementById('generer-loading').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('regenerer-btn').addEventListener('click', async () => {
+            if (!confirm('Remplacer le planning actuel par un nouveau ? Ta progression actuelle sera perdue.')) return;
+
+            const { error } = await window.supabaseClient.from('plannings_revision').delete().eq('id', planningActuel.id);
+            if (error) {
+                afficherToast(traduireErreur(error), 'error');
+                return;
+            }
+
+            planningActuel = null;
+            document.getElementById('date-examen').value = '';
+            afficherEtatCourant();
+        });
+
+        function calculerProgression() {
+            let total = 0, faites = 0;
+            (planningActuel.plan.jours || []).forEach(j => (j.taches || []).forEach(t => {
+                total++;
+                if (t.termine) faites++;
+            }));
+            return { total, faites };
+        }
+
+        function afficherPlanning() {
+            document.getElementById('examen-date-label').textContent = formatDateLisible(planningActuel.date_examen);
+
+            const { total, faites } = calculerProgression();
+            const pct = total > 0 ? Math.round((faites / total) * 100) : 0;
+            document.getElementById('progression-label').textContent = `${faites} / ${total} tâches`;
+            document.getElementById('progression-pct').textContent = pct + ' %';
+            document.getElementById('progression-bar').style.width = pct + '%';
+
+            const jours = planningActuel.plan.jours || [];
+            const container = document.getElementById('jours-container');
+
+            container.innerHTML = jours.map((jour, ji) => `
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
+                    <div class="text-xs font-bold text-indigo-600 uppercase tracking-wider">${formatDateLisible(jour.date)}</div>
+                    <div class="space-y-1.5">
+                        ${(jour.taches || []).map((tache, ti) => `
+                            <label class="flex items-start gap-2 text-sm ${tache.termine ? 'text-slate-400 line-through' : 'text-slate-700'} cursor-pointer">
+                                <input type="checkbox" data-jour="${ji}" data-tache="${ti}" ${tache.termine ? 'checked' : ''} class="tache-checkbox mt-0.5 flex-none">
+                                <span>${tache.texte}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.tache-checkbox').forEach(cb => {
+                cb.addEventListener('change', async () => {
+                    const ji = Number(cb.dataset.jour);
+                    const ti = Number(cb.dataset.tache);
+                    planningActuel.plan.jours[ji].taches[ti].termine = cb.checked;
+
+                    afficherPlanning(); // ré-affiche immédiatement (barré + progression)
+
+                    const { error } = await window.supabaseClient
+                        .from('plannings_revision')
+                        .update({ plan: planningActuel.plan, updated_at: new Date().toISOString() })
+                        .eq('id', planningActuel.id);
+
+                    if (error) console.error('Erreur sauvegarde progression:', error);
+                });
+            });
+
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

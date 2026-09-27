@@ -36,10 +36,13 @@
 
         <!-- SIDEBAR GAUCHE : HISTORIQUE DES CONVERSATIONS -->
         <aside id="sidebar" class="absolute md:relative z-30 w-72 h-full bg-white border-r border-slate-200 flex flex-col -translate-x-full md:translate-x-0 transition-transform duration-200">
-            <div class="p-3 border-b border-slate-100">
+            <div class="p-3 border-b border-slate-100 space-y-2">
                 <button id="nouvelle-conv-btn" class="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition">
                     <i data-lucide="plus" class="h-4 w-4"></i> Nouvelle conversation
                 </button>
+                <a href="plan-revision.html" class="w-full flex items-center justify-center gap-2 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 text-xs font-semibold rounded-xl transition">
+                    <i data-lucide="calendar-clock" class="h-4 w-4"></i> Planning de révision
+                </a>
             </div>
             <nav id="conversations-list" class="flex-1 overflow-y-auto p-2 space-y-1">
                 <p class="text-xs text-slate-400 text-center py-6 px-2">Chargement...</p>
